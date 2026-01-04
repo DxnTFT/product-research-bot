@@ -8,53 +8,34 @@ import pandas as pd
 from datetime import datetime
 import os
 import asyncio
+import sys
+
+# Fix for Windows Playwright asyncio issue
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 # Page config
 st.set_page_config(
     page_title="Product Research Bot",
-    page_icon="🔍",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Clean, professional styling
 st.markdown("""
 <style>
     .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        margin-bottom: 0;
+        font-size: 2rem;
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 0.5rem;
     }
     .sub-header {
-        font-size: 1.1rem;
-        color: #666;
+        font-size: 1rem;
+        color: #6c757d;
         margin-top: 0;
     }
-    .score-high {
-        background-color: #d4edda;
-        padding: 5px 10px;
-        border-radius: 5px;
-        color: #155724;
-        font-weight: bold;
-    }
-    .score-medium {
-        background-color: #fff3cd;
-        padding: 5px 10px;
-        border-radius: 5px;
-        color: #856404;
-        font-weight: bold;
-    }
-    .score-low {
-        background-color: #f8d7da;
-        padding: 5px 10px;
-        border-radius: 5px;
-        color: #721c24;
-        font-weight: bold;
-    }
-    .sentiment-positive { color: #28a745; font-weight: bold; }
-    .sentiment-negative { color: #dc3545; font-weight: bold; }
-    .sentiment-neutral { color: #6c757d; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -65,22 +46,28 @@ if 'running' not in st.session_state:
     st.session_state.running = False
 
 
-def get_sentiment_color(sentiment):
-    """Get color based on sentiment value."""
+def get_sentiment_badge(sentiment):
+    """Get sentiment badge with color."""
     if sentiment > 0.05:
-        return "🟢"
+        return f'<span style="color: #28a745; font-weight: bold;">+{sentiment:.2f}</span>'
     elif sentiment < -0.05:
-        return "🔴"
-    return "🟡"
+        return f'<span style="color: #dc3545; font-weight: bold;">{sentiment:.2f}</span>'
+    return f'<span style="color: #6c757d;">{sentiment:.2f}</span>'
 
 
 def get_score_badge(score):
-    """Get badge based on score."""
+    """Get score badge with color."""
     if score >= 70:
-        return f"✅ {score:.1f}"
+        color = "#28a745"  # Green
+        label = "HIGH"
     elif score >= 50:
-        return f"⚠️ {score:.1f}"
-    return f"❌ {score:.1f}"
+        color = "#ffc107"  # Yellow
+        label = "MODERATE"
+    else:
+        color = "#dc3545"  # Red
+        label = "LOW"
+
+    return f'<span style="background-color: {color}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{score:.1f} - {label}</span>'
 
 
 @st.cache_resource
@@ -99,8 +86,8 @@ def load_scrapers():
 
 def discover_niches(seed_keywords, max_products, progress_callback=None):
     """Discover hidden product niches."""
-    from discovery import NicheFinder
-    finder = NicheFinder()
+    from discovery.simple_niche_finder import SimpleNicheFinder
+    finder = SimpleNicheFinder()
     return finder.discover_niches(
         seed_keywords=seed_keywords,
         max_products=max_products,
@@ -198,17 +185,17 @@ def fetch_amazon_trending(categories, limit_per_category, progress_callback=None
 
 
 # Header
-st.markdown('<p class="main-header">🔍 Product Research Bot</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">Product Research Bot</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Find trending products and validate with real user sentiment</p>', unsafe_allow_html=True)
 st.markdown("---")
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Settings")
+    st.header("Settings")
 
     research_mode = st.radio(
         "Research Mode",
-        ["🔍 Discover Hidden Niches", "📝 Manual Products", "🔥 Amazon Trending"],
+        ["Discover Hidden Niches", "Manual Products", "Amazon Trending"],
         help="Choose how to find products to research"
     )
 
@@ -219,22 +206,22 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    st.markdown("### 📊 Score Guide")
-    st.markdown("- **70+** ✅ High opportunity")
-    st.markdown("- **50-70** ⚠️ Moderate")
-    st.markdown("- **<50** ❌ Low opportunity")
+    st.markdown("**Score Guide**")
+    st.markdown("- **70-100:** High opportunity")
+    st.markdown("- **50-69:** Moderate")
+    st.markdown("- **0-49:** Low opportunity")
 
     st.markdown("---")
-    st.markdown("### 💡 Tips")
-    st.markdown("- Look for **positive sentiment** 🟢")
-    st.markdown("- Avoid products with many **negative** reviews 🔴")
+    st.markdown("**Tips**")
+    st.markdown("- Look for positive sentiment")
+    st.markdown("- Check marketplace links")
     st.markdown("- More Reddit posts = more confidence")
 
 # Main content
-if research_mode == "🔍 Discover Hidden Niches":
-    st.header("🔍 Discover Hidden Niches")
+if research_mode == "Discover Hidden Niches":
+    st.header("Discover Hidden Niches")
     st.markdown("**Find rising products with low competition automatically**")
-    st.markdown("Uses Google Trends, Amazon, Shopify, and Reddit to find untapped opportunities")
+    st.markdown("Uses Google Trends to find trending searches, then validates sentiment on Reddit")
 
     col1, col2 = st.columns(2)
 
@@ -251,14 +238,14 @@ if research_mode == "🔍 Discover Hidden Niches":
 
     st.markdown("---")
     st.markdown("**How it works:**")
-    st.markdown("1. 🔥 Finds rising search queries from Google Trends")
-    st.markdown("2. 🏪 Checks Amazon & Shopify competition levels")
-    st.markdown("3. 💬 Validates Reddit sentiment")
-    st.markdown("4. 📊 Scores opportunities (0-100)")
+    st.markdown("1. Finds rising search queries from Google Trends")
+    st.markdown("2. Generates Amazon & Shopify search links")
+    st.markdown("3. Extracts keywords and validates Reddit sentiment")
+    st.markdown("4. Scores opportunities (0-100)")
 
     col1, col2 = st.columns([1, 4])
     with col1:
-        discover_btn = st.button("🔍 Discover Niches", type="primary", use_container_width=True)
+        discover_btn = st.button("Discover Niches", type="primary", use_container_width=True)
 
     if discover_btn:
         if not seed_keywords:
@@ -280,10 +267,10 @@ if research_mode == "🔍 Discover Hidden Niches":
 
             progress_bar.empty()
             status_text.empty()
-            st.success(f"✅ Discovered {len(st.session_state.results)} opportunities!")
+            st.success(f"Discovered {len(st.session_state.results)} opportunities!")
 
-elif research_mode == "📝 Manual Products":
-    st.header("📝 Research Specific Products")
+elif research_mode == "Manual Products":
+    st.header("Research Specific Products")
     st.markdown("Enter product names to research (one per line)")
 
     products_input = st.text_area(
@@ -295,7 +282,7 @@ elif research_mode == "📝 Manual Products":
 
     col1, col2 = st.columns([1, 4])
     with col1:
-        research_btn = st.button("🔍 Research", type="primary", use_container_width=True)
+        research_btn = st.button("Research Products", type="primary", use_container_width=True)
 
     if research_btn:
         products = [p.strip() for p in products_input.split('\n') if p.strip()]
@@ -319,10 +306,10 @@ elif research_mode == "📝 Manual Products":
 
             progress_bar.empty()
             status_text.empty()
-            st.success(f"✅ Researched {len(st.session_state.results)} products!")
+            st.success(f"Researched {len(st.session_state.results)} products!")
 
 else:  # Amazon Trending
-    st.header("🔥 Amazon Trending Products")
+    st.header("Amazon Trending Products")
     st.markdown("Automatically fetch products from Amazon Movers & Shakers")
 
     col1, col2 = st.columns(2)
@@ -340,7 +327,7 @@ else:  # Amazon Trending
 
     col1, col2 = st.columns([1, 4])
     with col1:
-        fetch_btn = st.button("🔥 Fetch & Research", type="primary", use_container_width=True)
+        fetch_btn = st.button("Fetch & Research", type="primary", use_container_width=True)
 
     if fetch_btn:
         if not categories:
@@ -388,12 +375,12 @@ else:  # Amazon Trending
                 st.session_state.results = results
                 progress_bar.empty()
                 status_text.empty()
-                st.success(f"✅ Analyzed {len(results)} products!")
+                st.success(f"Analyzed {len(results)} products!")
 
 # Display results
 if st.session_state.results:
     st.markdown("---")
-    st.header("📊 Results")
+    st.header("Results")
 
     results = st.session_state.results
 
@@ -436,58 +423,72 @@ if st.session_state.results:
 
     for i, product in enumerate(filtered):
         with st.container():
-            col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+            # Header row
+            col1, col2 = st.columns([3, 1])
 
             with col1:
-                st.markdown(f"**{i+1}. {product['name'][:60]}**")
-                if product.get('category'):
+                st.markdown(f"### {i+1}. {product['name'][:70]}")
+                if product.get('keywords'):
+                    st.caption(f"Keywords: {', '.join(product['keywords'])}")
+                elif product.get('category'):
                     st.caption(f"Category: {product['category']}")
 
             with col2:
                 score = product['opportunity_score']
-                st.metric("Score", get_score_badge(score))
+                st.markdown(get_score_badge(score), unsafe_allow_html=True)
+
+            # Metrics row
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                st.metric("Reddit Posts", product['reddit_posts'])
+
+            with col2:
+                sentiment = product['reddit_sentiment']
+                st.markdown(f"**Sentiment:** {get_sentiment_badge(sentiment)}", unsafe_allow_html=True)
 
             with col3:
-                sentiment = product['reddit_sentiment']
-                emoji = get_sentiment_color(sentiment)
-                st.metric("Sentiment", f"{emoji} {sentiment:.2f}")
+                ratio = product.get('sentiment_ratio', 0.5)
+                st.metric("Positive Ratio", f"{ratio:.0%}")
 
-            with col4:
-                st.metric("Posts", product['reddit_posts'])
+            # Marketplace links
+            if product.get('amazon_url') or product.get('shopify_search_url'):
+                link_col1, link_col2 = st.columns(2)
+
+                with link_col1:
+                    if product.get('amazon_url'):
+                        st.link_button("Search on Amazon", product['amazon_url'], use_container_width=True)
+
+                with link_col2:
+                    if product.get('shopify_search_url'):
+                        st.link_button("Search Shopify Stores", product['shopify_search_url'], use_container_width=True)
 
             # Expandable details
             with st.expander("View details"):
-                detail_col1, detail_col2, detail_col3 = st.columns(3)
+                detail_col1, detail_col2 = st.columns(2)
 
                 with detail_col1:
                     st.markdown("**Reddit Analysis**")
                     st.write(f"- Total posts: {product['reddit_posts']}")
                     st.write(f"- Positive: {product['reddit_positive']}")
                     st.write(f"- Negative: {product['reddit_negative']}")
-                    st.write(f"- Sentiment ratio: {product['sentiment_ratio']:.0%}")
+                    st.write(f"- Sentiment score: {product['reddit_sentiment']:.3f}")
 
                 with detail_col2:
-                    st.markdown("**Competition**")
-                    if product.get('amazon_saturation'):
-                        st.write(f"- Amazon: {product['amazon_saturation']}")
-                        st.write(f"- Avg reviews: {product.get('amazon_avg_reviews', 0):,}")
-                    if product.get('shopify_saturation'):
-                        st.write(f"- Shopify: {product['shopify_saturation']}")
-                        st.write(f"- Stores: {product.get('shopify_stores', 0)}")
-
-                with detail_col3:
-                    st.markdown("**Trend Data**")
-                    st.write(f"- Direction: {product['trend_direction']}")
-                    st.write(f"- Score: {product['trend_score']}")
+                    st.markdown("**Additional Info**")
+                    st.write(f"- Trend direction: {product.get('trend_direction', 'unknown')}")
+                    st.write(f"- Trend score: {product.get('trend_score', 0)}")
                     if product.get('price'):
                         st.write(f"- Price: {product['price']}")
-                    if product.get('url'):
-                        st.markdown(f"[View on Amazon]({product['url']})")
+                    if product.get('amazon_saturation'):
+                        st.write(f"- Amazon saturation: {product['amazon_saturation']}")
+                    if product.get('shopify_stores'):
+                        st.write(f"- Shopify stores: {product['shopify_stores']}")
 
             st.markdown("---")
 
     # Export section
-    st.markdown("### 📥 Export Results")
+    st.markdown("### Export Results")
 
     df = pd.DataFrame(filtered)
 
@@ -496,7 +497,7 @@ if st.session_state.results:
     with col1:
         csv = df.to_csv(index=False)
         st.download_button(
-            label="📄 Download CSV",
+            label="Download CSV",
             data=csv,
             file_name=f"product_research_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
@@ -506,7 +507,7 @@ if st.session_state.results:
     with col2:
         json_data = df.to_json(orient='records', indent=2)
         st.download_button(
-            label="📋 Download JSON",
+            label="Download JSON",
             data=json_data,
             file_name=f"product_research_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
             mime="application/json",
