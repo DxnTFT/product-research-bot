@@ -31,6 +31,6 @@ Thumbs.db
 *.log
 logs/
 
-# Reports (optional - uncomment if you want to track reports)
-# reports/*.csv
-# reports/*.json
+# Reports (generated files)
+reports/*.csv
+reports/*.json
