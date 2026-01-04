@@ -1,0 +1,19 @@
+# Product Research List
+# Add products you want to research (one per line)
+# You can find trending products at:
+# - https://www.amazon.com/gp/movers-and-shakers
+# - https://www.amazon.com/Best-Sellers/zgbs
+#
+# Lines starting with # are ignored
+# Example products below - replace with your own:
+
+air fryer
+instant pot
+resistance bands
+yoga mat
+foam roller
+massage gun
+blender
+cast iron skillet
+electric kettle
+kitchen scale

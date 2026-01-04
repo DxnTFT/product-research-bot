@@ -10,6 +10,7 @@ from datetime import datetime
 import re
 import time
 import random
+import json
 
 from .base_scraper import BaseScraper
 
@@ -21,35 +22,55 @@ class AmazonScraper(BaseScraper):
 
     # Category URLs for Movers & Shakers (products gaining sales rank)
     MOVERS_SHAKERS = {
-        "kitchen": "/gp/movers-and-shakers/kitchen/ref=zg_bsms_nav_kitchen_0",
-        "home": "/gp/movers-and-shakers/home-garden/ref=zg_bsms_nav_home-garden_0",
-        "sports": "/gp/movers-and-shakers/sporting-goods/ref=zg_bsms_nav_sporting-goods_0",
-        "fitness": "/gp/movers-and-shakers/exercise-and-fitness/ref=zg_bsms_nav_exercise-and-fitness_0",
-        "electronics": "/gp/movers-and-shakers/electronics/ref=zg_bsms_nav_electronics_0",
-        "beauty": "/gp/movers-and-shakers/beauty/ref=zg_bsms_nav_beauty_0",
+        "kitchen": "/gp/movers-and-shakers/kitchen",
+        "home": "/gp/movers-and-shakers/home-garden",
+        "sports": "/gp/movers-and-shakers/sporting-goods",
+        "fitness": "/gp/movers-and-shakers/exercise-and-fitness",
+        "electronics": "/gp/movers-and-shakers/electronics",
+        "beauty": "/gp/movers-and-shakers/beauty",
+        "baby": "/gp/movers-and-shakers/baby-products",
+        "pets": "/gp/movers-and-shakers/pet-supplies",
+        "garden": "/gp/movers-and-shakers/lawn-garden",
+        "tools": "/gp/movers-and-shakers/hi",
     }
 
     # Best Sellers pages
     BEST_SELLERS = {
-        "kitchen": "/Best-Sellers-Kitchen-Dining/zgbs/kitchen/ref=zg_bs_nav_kitchen_0",
-        "home": "/Best-Sellers-Home-Kitchen/zgbs/home-garden/ref=zg_bs_nav_home-garden_0",
-        "sports": "/Best-Sellers-Sports-Outdoors/zgbs/sporting-goods/ref=zg_bs_nav_sporting-goods_0",
-        "fitness": "/Best-Sellers-Sports-Fitness/zgbs/exercise-and-fitness/ref=zg_bs_nav_exercise-and-fitness_0",
+        "kitchen": "/Best-Sellers-Kitchen-Dining/zgbs/kitchen",
+        "home": "/Best-Sellers-Home-Kitchen/zgbs/home-garden",
+        "sports": "/Best-Sellers-Sports-Outdoors/zgbs/sporting-goods",
+        "fitness": "/Best-Sellers-Sports-Fitness/zgbs/exercise-and-fitness",
     }
+
+    # Rotate user agents to look more natural
+    USER_AGENTS = [
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    ]
 
     def __init__(self, delay: float = 3.0):
         super().__init__(delay)
         self.session = requests.Session()
+        # Set initial cookies to look like a real visitor
+        self.session.cookies.set("session-id", f"{random.randint(100, 999)}-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}")
 
     def get_headers(self) -> Dict[str, str]:
         """Get headers that look like a real browser."""
         return {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
+            "User-Agent": random.choice(self.USER_AGENTS),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
             "Accept-Encoding": "gzip, deflate, br",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Cache-Control": "max-age=0",
         }
 
     def scrape_movers_shakers(self, category: str, limit: int = 20) -> List[Dict[str, Any]]:

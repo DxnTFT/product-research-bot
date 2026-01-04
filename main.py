@@ -10,7 +10,7 @@ import argparse
 from datetime import datetime
 from typing import List, Dict, Any
 
-from scrapers import AmazonScraper, TrendsScraper, RedditScraper
+from scrapers import AmazonScraper, TrendsScraper, RedditScraper, get_amazon_trending
 from analysis import SentimentAnalyzer, ProductScorer
 from reports import ReportGenerator
 
@@ -28,6 +28,7 @@ class ProductResearchBot:
         self.sentiment = SentimentAnalyzer()
         self.scorer = ProductScorer()
         self.reporter = ReportGenerator()
+        self.use_browser = True  # Use browser-based scraper for Amazon
 
     def run(self, categories: List[str] = None, limit: int = 10, skip_trends: bool = False):
         """
@@ -45,20 +46,16 @@ class ProductResearchBot:
         if categories is None:
             categories = ["kitchen", "fitness", "home"]
 
-        # STEP 1: Find trending products on Amazon
+        # STEP 1: Find trending products on Amazon (using browser automation)
         print("\n[STEP 1] Finding trending products on Amazon...")
         print("-" * 50)
+        print("  Using browser automation (Playwright)...")
 
-        trending_products = []
-        for category in categories:
-            print(f"\n  Category: {category}")
-            products = self.amazon.scrape_movers_shakers(category, limit=limit)
-            trending_products.extend(products)
-            print(f"  Found {len(products)} trending products")
+        trending_products = get_amazon_trending(categories, limit_per_category=limit)
 
         if not trending_products:
-            print("\n[ERROR] Could not fetch Amazon products. Amazon may be blocking requests.")
-            print("Try running with a VPN or wait and try again later.")
+            print("\n[ERROR] Could not fetch Amazon products.")
+            print("Make sure Playwright is installed: python -m playwright install chromium")
             return
 
         print(f"\n  Total trending products found: {len(trending_products)}")
@@ -376,7 +373,11 @@ class ProductResearchBot:
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
-                products = [line.strip() for line in f if line.strip()]
+                # Filter out comments and empty lines
+                products = [
+                    line.strip() for line in f
+                    if line.strip() and not line.strip().startswith('#')
+                ]
 
             if not products:
                 print(f"No products found in {filepath}")
