@@ -95,9 +95,9 @@ SCRAPE_SETTINGS = {
     "posts_per_subreddit": 25,  # Number of posts to fetch per subreddit
     "min_upvotes": 10,  # Minimum upvotes to consider
     "min_comments": 5,  # Minimum comments to consider
-    "include_comments": True,  # Also analyze comments
-    "comments_per_post": 20,  # Top comments to analyze per post
-    "delay_between_requests": 2,  # Seconds between requests (be nice to Reddit)
+    "include_comments": False,  # Disable comments for now (causes 403s)
+    "comments_per_post": 10,  # Top comments to analyze per post
+    "delay_between_requests": 4,  # Seconds between requests (be nice to Reddit)
 }
 
 # Scoring weights for product opportunity

@@ -127,14 +127,17 @@ class ReportGenerator:
 
         filepath = os.path.join(self.output_dir, f"{filename}.json")
 
-        # Convert datetime objects to strings
-        serializable = []
-        for product in products:
-            p = product.copy()
-            for key, value in p.items():
-                if isinstance(value, datetime):
-                    p[key] = value.isoformat()
-            serializable.append(p)
+        def serialize(obj):
+            """Recursively convert datetime objects to strings."""
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            elif isinstance(obj, dict):
+                return {k: serialize(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [serialize(item) for item in obj]
+            return obj
+
+        serializable = serialize(products)
 
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2)
