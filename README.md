@@ -1,17 +1,47 @@
 # Product Research Bot
 
-Automated product research tool that finds trending products and validates them with real user sentiment from Reddit.
+**Professional product discovery tool for e-commerce entrepreneurs and businesses**
 
-## What It Does
+Find untapped product opportunities by combining Google Trends, marketplace competition analysis, and real user sentiment validation.
 
-```
-Amazon Movers & Shakers → Google Trends → Reddit Sentiment → Opportunity Score
-```
+## Why This Tool?
 
-1. **Finds trending products** from Amazon's Movers & Shakers (products gaining sales rank)
-2. **Validates search interest** with Google Trends (optional)
-3. **Analyzes real user sentiment** by searching Reddit discussions
-4. **Scores opportunities** and exports to CSV/JSON
+Traditional product research requires:
+- 10+ hours manually browsing Google Trends
+- Checking Amazon competition for each product
+- Searching Shopify stores to gauge saturation
+- Reading Reddit threads for sentiment
+
+**This tool does it all automatically in minutes.**
+
+## Features
+
+### 🔍 Hidden Niche Discovery (PRIMARY)
+Automatically finds rising products with low competition:
+- Discovers trending products from Google Trends
+- Analyzes Amazon marketplace saturation
+- Checks Shopify store competition
+- Validates real user sentiment from Reddit
+- Scores opportunities 0-100
+
+**Perfect for:** Finding products BEFORE they become saturated
+
+### 📝 Manual Product Research
+Validate specific product ideas:
+- Enter products you want to research
+- Get competition analysis across Amazon + Shopify
+- Reddit sentiment validation
+- Opportunity scoring
+
+**Perfect for:** Validating products you already have in mind
+
+### 🔥 Amazon Trending (Optional)
+Quick analysis of Amazon Movers & Shakers:
+- Fetch currently trending products
+- Analyze Reddit sentiment
+- Good for market awareness
+
+**Note:** These products are already trending = higher competition
 
 ## Installation
 
@@ -23,117 +53,180 @@ cd product-research-bot
 # Install dependencies
 pip install -r requirements.txt
 
-# Install browser for Amazon scraping
+# Install browser for scraping
 python -m playwright install chromium
 ```
 
 ## Usage
 
-### Full Automated Pipeline
+### Web UI (Recommended for Teams)
+
 ```bash
-# Scan Amazon trending → Reddit sentiment (kitchen, fitness, home)
-python main.py
-
-# Specific categories
-python main.py --categories kitchen fitness
-
-# More products per category
-python main.py --categories kitchen --limit 20
-
-# Skip Google Trends (faster)
-python main.py --skip-trends
+streamlit run app.py
 ```
 
-### Manual Product Research
+Opens in browser with:
+- **Discover Hidden Niches** - Automated discovery mode
+- **Manual Products** - Validate specific ideas
+- **Amazon Trending** - Quick market analysis
+- Export results to CSV/JSON
+
+### Command Line
+
+#### Discover Hidden Niches
 ```bash
-# Research specific products you're interested in
+# Discover opportunities in specific categories
+python main.py --discover --seed-keywords kitchen fitness home
+
+# Analyze more products
+python main.py -d --seed-keywords electronics --max-products 50
+```
+
+#### Research Specific Products
+```bash
+# Validate your product ideas
 python main.py -p "air fryer" "yoga mat" "resistance bands"
 
-# From a file (one product per line)
-python main.py -f products_to_research.txt
+# From a file
+python main.py -f my_product_ideas.txt
 ```
 
-### Quick Check Single Product
+#### Quick Product Check
 ```bash
 python main.py --check "air fryer"
 ```
 
+## How Scoring Works
+
+### Opportunity Score (0-100)
+
+**Rising Trend (0-25 pts)**
+- Google Trends growth rate
+- Bonus for "rising" direction
+
+**Amazon Competition (0-25 pts)**
+- Search result count
+- Average review counts
+- Very High saturation: 10 pts
+- Very Low saturation: 90 pts
+
+**Shopify Competition (0-25 pts)**
+- Number of stores selling product
+- <10 stores: 90 pts (excellent)
+- >300 stores: 10 pts (saturated)
+
+**Reddit Sentiment (0-25 pts)**
+- User opinion analysis (-1 to +1)
+- Discussion volume (more = better)
+- Positive/negative ratio
+
+**Bonuses & Penalties:**
+- +5: Strong positive sentiment (>70% positive)
+- -10: More negative than positive reviews
+- -5: Very high Amazon/Shopify saturation
+
+### Score Interpretation
+
+| Score | Opportunity | Action |
+|-------|------------|--------|
+| **70-100** | High | Research further, likely good opportunity |
+| **50-69** | Moderate | Proceed with caution, validate more |
+| **0-49** | Low | High competition or negative sentiment |
+
 ## Output
 
-Results are saved to the `reports/` folder:
-- `opportunities_TIMESTAMP.csv` - Open in Excel/Google Sheets
+Results saved to `reports/`:
+- `opportunities_TIMESTAMP.csv` - Spreadsheet format
 - `opportunities_TIMESTAMP.json` - For programmatic use
 
-### Columns Explained
+### Data Columns
 
 | Column | Description |
 |--------|-------------|
 | `name` | Product name |
-| `opportunity_score` | 0-100 score (higher = better opportunity) |
-| `reddit_sentiment` | -1 to +1 (positive = people like it) |
-| `reddit_posts` | Number of Reddit discussions found |
-| `sentiment_ratio` | % of positive vs negative posts |
-| `trend_direction` | rising/falling/stable (from Google Trends) |
+| `opportunity_score` | 0-100 score (higher = better) |
+| `trend_direction` | rising/stable/falling |
+| `trend_score` | Google Trends score |
+| `amazon_saturation` | very_low/low/medium/high/very_high |
+| `amazon_avg_reviews` | Avg reviews of top products |
+| `shopify_saturation` | very_low/low/medium/high/very_high |
+| `shopify_stores` | # of Shopify stores selling it |
+| `reddit_sentiment` | -1 to +1 (positive = good) |
+| `reddit_posts` | # of Reddit discussions |
+| `sentiment_ratio` | % positive vs negative |
 
-## Available Categories
+## Example Workflow
 
-- `kitchen` - Kitchen & Dining
-- `home` - Home & Garden
-- `fitness` - Exercise & Fitness
-- `sports` - Sports & Outdoors
-- `electronics` - Electronics
-- `beauty` - Beauty & Personal Care
-- `baby` - Baby Products
-- `pets` - Pet Supplies
-- `garden` - Lawn & Garden
-- `tools` - Tools & Home Improvement
+### For E-commerce Store Owners
 
-## How Scoring Works
+1. **Discover Mode**: Find 20-30 rising opportunities
+   ```bash
+   python main.py -d --seed-keywords kitchen home fitness
+   ```
 
-```
-Base Score (30 pts) - Product is trending on Amazon
-+ Google Trends (0-25 pts) - Rising search interest
-+ Reddit Sentiment (0-25 pts) - Positive user opinions
-+ Reddit Volume (0-20 pts) - Amount of discussion
-+ Bonus (+5 pts) - Strong positive sentiment ratio
-- Penalty (-10 pts) - More negative than positive posts
-= Opportunity Score (0-100)
-```
+2. **Review Results**: Look for score 70+, low saturation
 
-**70+ = High opportunity** - Consider researching further
-**50-70 = Moderate** - Proceed with caution
-**<50 = Low opportunity** - May have issues
+3. **Validate Top Picks**: Read Reddit posts manually for final validation
 
-## Example Output
+4. **Research Suppliers**: Find products on Alibaba/AliExpress
 
-```
-TOP PRODUCT OPPORTUNITIES
-======================================================================
- 1. [ 83.5] Ello Duraglass Meal Prep Sets              | kitchen  | S:+ R:16
- 2. [ 80.9] Ello Pop & Fill Water Bottle               | kitchen  | S:+ R:20
- 3. [ 77.6] Kitchen Genie Manual Chopper               | kitchen  | S:+ R:20
- 4. [ 74.1] Ukeetap Chicken Shredder Tool              | kitchen  | S:+ R:20
- 5. [ 64.2] Generic Yoga Mat                           | fitness  | S:- R:20
-```
+5. **Test**: Order samples or start with dropshipping
 
-Note: Product #5 has negative sentiment (S:-) which lowers its score.
+### For Market Research
+
+1. **Discover niches** in your target categories
+2. **Export CSV** for team review
+3. **Compare trends** over time (run weekly)
+4. **Identify patterns** in rising categories
 
 ## Tech Stack
 
 - **Python 3.8+**
+- **Streamlit** - Web UI
 - **Playwright** - Browser automation for Amazon
 - **BeautifulSoup** - HTML parsing
-- **VADER Sentiment** - Social media sentiment analysis
 - **pytrends** - Google Trends API
-- **SQLAlchemy** - Database (optional)
+- **VADER Sentiment** - Social media sentiment analysis
+- **Pandas** - Data processing
+
+## SaaS Potential
+
+This tool is designed for:
+- E-commerce entrepreneurs
+- Dropshipping businesses
+- Product sourcing companies
+- Market research teams
+
+**Key Value Props:**
+- Saves 10+ hours per week on research
+- Finds opportunities competitors miss
+- Data-driven decisions (not guesswork)
+- Validates before inventory investment
+
+## Roadmap
+
+- [ ] Historical trend tracking
+- [ ] Email alerts for new opportunities
+- [ ] Multi-user team accounts
+- [ ] TikTok/Instagram trend integration
+- [ ] Supplier integration (Alibaba API)
+- [ ] Competition price tracking
 
 ## Notes
 
-- Amazon scraping uses browser automation (Playwright) to avoid blocking
-- Reddit uses their JSON API (no auth required)
-- Google Trends may rate limit with heavy use
-- Run with `--skip-trends` for faster results
+- **Rate Limits**: Google Trends may throttle with heavy use (built-in delays help)
+- **Accuracy**: Reddit sentiment based on available posts (more posts = more reliable)
+- **Competition**: Metrics are snapshots; verify before major investment
+- **Browser Required**: Playwright needs Chromium for Amazon scraping
 
 ## License
 
 MIT
+
+## Contributing
+
+Built for the e-commerce community. Feedback and contributions welcome!
+
+---
+
+**Built to find hidden opportunities in competitive markets.**

@@ -97,6 +97,17 @@ def load_scrapers():
     }
 
 
+def discover_niches(seed_keywords, max_products, progress_callback=None):
+    """Discover hidden product niches."""
+    from discovery import NicheFinder
+    finder = NicheFinder()
+    return finder.discover_niches(
+        seed_keywords=seed_keywords,
+        max_products=max_products,
+        progress_callback=progress_callback
+    )
+
+
 def research_products(products, skip_trends=True, progress_callback=None):
     """Research a list of products."""
     tools = load_scrapers()
@@ -197,7 +208,7 @@ with st.sidebar:
 
     research_mode = st.radio(
         "Research Mode",
-        ["📝 Manual Products", "🔥 Amazon Trending"],
+        ["🔍 Discover Hidden Niches", "📝 Manual Products", "🔥 Amazon Trending"],
         help="Choose how to find products to research"
     )
 
@@ -220,7 +231,58 @@ with st.sidebar:
     st.markdown("- More Reddit posts = more confidence")
 
 # Main content
-if research_mode == "📝 Manual Products":
+if research_mode == "🔍 Discover Hidden Niches":
+    st.header("🔍 Discover Hidden Niches")
+    st.markdown("**Find rising products with low competition automatically**")
+    st.markdown("Uses Google Trends, Amazon, Shopify, and Reddit to find untapped opportunities")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        seed_keywords = st.multiselect(
+            "Seed Keywords (categories to explore):",
+            ["kitchen", "fitness", "home", "sports", "electronics", "beauty", "baby", "pets", "garden", "tools", "office", "outdoor"],
+            default=["kitchen", "fitness", "home"],
+            help="Starting categories to discover rising products"
+        )
+
+    with col2:
+        max_products = st.slider("Max products to analyze:", 10, 50, 30)
+
+    st.markdown("---")
+    st.markdown("**How it works:**")
+    st.markdown("1. 🔥 Finds rising search queries from Google Trends")
+    st.markdown("2. 🏪 Checks Amazon & Shopify competition levels")
+    st.markdown("3. 💬 Validates Reddit sentiment")
+    st.markdown("4. 📊 Scores opportunities (0-100)")
+
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        discover_btn = st.button("🔍 Discover Niches", type="primary", use_container_width=True)
+
+    if discover_btn:
+        if not seed_keywords:
+            st.error("Please select at least one seed keyword")
+        else:
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+
+            def update_progress(i, total, name):
+                progress_bar.progress((i + 1) / total)
+                status_text.text(f"Analyzing: {name[:40]}... ({i+1}/{total})")
+
+            with st.spinner("Discovering hidden niches..."):
+                st.session_state.results = discover_niches(
+                    seed_keywords=seed_keywords,
+                    max_products=max_products,
+                    progress_callback=update_progress
+                )
+
+            progress_bar.empty()
+            status_text.empty()
+            st.success(f"✅ Discovered {len(st.session_state.results)} opportunities!")
+
+elif research_mode == "📝 Manual Products":
     st.header("📝 Research Specific Products")
     st.markdown("Enter product names to research (one per line)")
 
@@ -395,7 +457,7 @@ if st.session_state.results:
 
             # Expandable details
             with st.expander("View details"):
-                detail_col1, detail_col2 = st.columns(2)
+                detail_col1, detail_col2, detail_col3 = st.columns(3)
 
                 with detail_col1:
                     st.markdown("**Reddit Analysis**")
@@ -405,9 +467,18 @@ if st.session_state.results:
                     st.write(f"- Sentiment ratio: {product['sentiment_ratio']:.0%}")
 
                 with detail_col2:
+                    st.markdown("**Competition**")
+                    if product.get('amazon_saturation'):
+                        st.write(f"- Amazon: {product['amazon_saturation']}")
+                        st.write(f"- Avg reviews: {product.get('amazon_avg_reviews', 0):,}")
+                    if product.get('shopify_saturation'):
+                        st.write(f"- Shopify: {product['shopify_saturation']}")
+                        st.write(f"- Stores: {product.get('shopify_stores', 0)}")
+
+                with detail_col3:
                     st.markdown("**Trend Data**")
-                    st.write(f"- Trend direction: {product['trend_direction']}")
-                    st.write(f"- Trend score: {product['trend_score']}")
+                    st.write(f"- Direction: {product['trend_direction']}")
+                    st.write(f"- Score: {product['trend_score']}")
                     if product.get('price'):
                         st.write(f"- Price: {product['price']}")
                     if product.get('url'):

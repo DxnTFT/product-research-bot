@@ -13,6 +13,7 @@ from typing import List, Dict, Any
 from scrapers import AmazonScraper, TrendsScraper, RedditScraper, get_amazon_trending
 from analysis import SentimentAnalyzer, ProductScorer
 from reports import ReportGenerator
+from discovery import NicheFinder
 
 
 class ProductResearchBot:
@@ -422,23 +423,48 @@ def main():
         "--file", "-f", type=str,
         help="Load products from a text file (one product per line)"
     )
+    parser.add_argument(
+        "--discover", "-d", action="store_true",
+        help="Discover hidden niches (rising trends + low competition)"
+    )
+    parser.add_argument(
+        "--seed-keywords", nargs="+",
+        default=["kitchen", "fitness", "home"],
+        help="Seed keywords for niche discovery (default: kitchen fitness home)"
+    )
+    parser.add_argument(
+        "--max-products", type=int, default=30,
+        help="Max products to analyze in discovery mode (default: 30)"
+    )
 
     args = parser.parse_args()
 
-    bot = ProductResearchBot()
-
-    if args.check:
-        bot.quick_check(args.check)
-    elif args.products:
-        bot.research_products(args.products, skip_trends=args.skip_trends)
-    elif args.file:
-        bot.research_from_file(args.file, skip_trends=args.skip_trends)
-    else:
-        bot.run(
-            categories=args.categories,
-            limit=args.limit,
-            skip_trends=args.skip_trends
+    if args.discover:
+        # NEW: Discover hidden niches mode
+        finder = NicheFinder()
+        opportunities = finder.discover_niches(
+            seed_keywords=args.seed_keywords,
+            max_products=args.max_products
         )
+
+        # Generate report
+        bot = ProductResearchBot()
+        bot._generate_report(opportunities)
+    else:
+        bot = ProductResearchBot()
+
+        if args.check:
+            bot.quick_check(args.check)
+        elif args.products:
+            bot.research_products(args.products, skip_trends=args.skip_trends)
+        elif args.file:
+            bot.research_from_file(args.file, skip_trends=args.skip_trends)
+        else:
+            bot.run(
+                categories=args.categories,
+                limit=args.limit,
+                skip_trends=args.skip_trends
+            )
 
 
 if __name__ == "__main__":
