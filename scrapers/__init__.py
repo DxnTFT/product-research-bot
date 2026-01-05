@@ -5,3 +5,5 @@ from .browser_scraper import BrowserScraper, get_amazon_trending
 from .shopify_scraper import ShopifyScraper
 from .competition_checker import AmazonCompetitionChecker, check_amazon_competition
 from .trends_discovery import TrendsDiscovery
+from .google_trends_trending import GoogleTrendsTrending
+from .amazon_product_finder import AmazonProductFinder

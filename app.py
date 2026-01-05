@@ -84,13 +84,14 @@ def load_scrapers():
     }
 
 
-def discover_niches(seed_keywords, max_products, progress_callback=None):
-    """Discover hidden product niches."""
-    from discovery.simple_niche_finder import SimpleNicheFinder
-    finder = SimpleNicheFinder()
-    return finder.discover_niches(
-        seed_keywords=seed_keywords,
+def discover_niches(categories, max_products, products_per_topic, progress_callback=None):
+    """Discover product opportunities from trending topics."""
+    from discovery.trends_to_products_finder import TrendsToProductsFinder
+    finder = TrendsToProductsFinder()
+    return finder.discover_opportunities(
+        categories=categories,
         max_products=max_products,
+        products_per_topic=products_per_topic,
         progress_callback=progress_callback
     )
 
@@ -220,36 +221,38 @@ with st.sidebar:
 # Main content
 if research_mode == "Discover Hidden Niches":
     st.header("Discover Hidden Niches")
-    st.markdown("**Find rising products with low competition automatically**")
-    st.markdown("Uses Google Trends to find trending searches, then validates sentiment on Reddit")
+    st.markdown("**Find products related to trending topics**")
+    st.markdown("Gets trending topics from Google Trends, finds related products on Amazon, validates sentiment on Reddit")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        seed_keywords = st.multiselect(
-            "Seed Keywords (categories to explore):",
-            ["kitchen", "fitness", "home", "sports", "electronics", "beauty", "baby", "pets", "garden", "tools", "office", "outdoor"],
-            default=["kitchen", "fitness", "home"],
-            help="Starting categories to discover rising products"
+        categories = st.multiselect(
+            "Google Trends Categories:",
+            ["fashion_beauty", "hobbies", "pets", "shopping", "technology"],
+            default=["technology", "shopping"],
+            help="Categories to scan on Google Trends (past 7 days)"
         )
 
     with col2:
-        max_products = st.slider("Max products to analyze:", 10, 50, 30)
+        max_products = st.slider("Max products to return:", 10, 50, 20)
+
+    products_per_topic = st.slider("Products per trending topic:", 1, 5, 3, help="How many products to find for each trending topic")
 
     st.markdown("---")
     st.markdown("**How it works:**")
-    st.markdown("1. Finds rising search queries from Google Trends")
-    st.markdown("2. Generates Amazon & Shopify search links")
-    st.markdown("3. Extracts keywords and validates Reddit sentiment")
-    st.markdown("4. Scores opportunities (0-100)")
+    st.markdown("1. Gets trending topics from Google Trends (Fashion, Hobbies, Pets, Shopping, Technology)")
+    st.markdown("2. Finds actual products on Amazon related to those topics")
+    st.markdown("3. Extracts keywords and validates Reddit sentiment on specific products")
+    st.markdown("4. Provides Amazon links and Shopify search URLs")
 
     col1, col2 = st.columns([1, 4])
     with col1:
-        discover_btn = st.button("Discover Niches", type="primary", use_container_width=True)
+        discover_btn = st.button("Discover Opportunities", type="primary", use_container_width=True)
 
     if discover_btn:
-        if not seed_keywords:
-            st.error("Please select at least one seed keyword")
+        if not categories:
+            st.error("Please select at least one category")
         else:
             progress_bar = st.progress(0)
             status_text = st.empty()
@@ -258,10 +261,11 @@ if research_mode == "Discover Hidden Niches":
                 progress_bar.progress((i + 1) / total)
                 status_text.text(f"Analyzing: {name[:40]}... ({i+1}/{total})")
 
-            with st.spinner("Discovering hidden niches..."):
+            with st.spinner("Discovering opportunities from trending topics..."):
                 st.session_state.results = discover_niches(
-                    seed_keywords=seed_keywords,
+                    categories=categories,
                     max_products=max_products,
+                    products_per_topic=products_per_topic,
                     progress_callback=update_progress
                 )
 
@@ -428,6 +432,8 @@ if st.session_state.results:
 
             with col1:
                 st.markdown(f"### {i+1}. {product['name'][:70]}")
+                if product.get('related_topic'):
+                    st.caption(f"Related to trending topic: **{product['related_topic']}**")
                 if product.get('keywords'):
                     st.caption(f"Keywords: {', '.join(product['keywords'])}")
                 elif product.get('category'):
