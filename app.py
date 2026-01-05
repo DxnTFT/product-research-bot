@@ -84,14 +84,14 @@ def load_scrapers():
     }
 
 
-def discover_niches(categories, max_products, products_per_topic, progress_callback=None):
-    """Discover product opportunities from trending topics."""
-    from discovery.trends_to_products_finder import TrendsToProductsFinder
-    finder = TrendsToProductsFinder()
+def discover_niches(categories, max_products, products_per_keyword, progress_callback=None):
+    """Discover product opportunities from trending keywords."""
+    from discovery.amazon_direct_finder import AmazonDirectFinder
+    finder = AmazonDirectFinder()
     return finder.discover_opportunities(
         categories=categories,
         max_products=max_products,
-        products_per_topic=products_per_topic,
+        products_per_keyword=products_per_keyword,
         progress_callback=progress_callback
     )
 
@@ -237,14 +237,15 @@ if research_mode == "Discover Hidden Niches":
     with col2:
         max_products = st.slider("Max products to return:", 10, 50, 20)
 
-    products_per_topic = st.slider("Products per trending topic:", 1, 5, 3, help="How many products to find for each trending topic")
+    products_per_keyword = st.slider("Products per keyword:", 1, 5, 3, help="How many products to find for each trending keyword")
 
     st.markdown("---")
     st.markdown("**How it works:**")
-    st.markdown("1. Gets trending topics from Google Trends (Fashion, Hobbies, Pets, Shopping, Technology)")
-    st.markdown("2. Finds actual products on Amazon related to those topics")
+    st.markdown("1. Uses curated trending keywords for each category (updated monthly)")
+    st.markdown("2. Searches Amazon directly for products matching those keywords")
     st.markdown("3. Extracts keywords and validates Reddit sentiment on specific products")
     st.markdown("4. Provides Amazon links and Shopify search URLs")
+    st.markdown("**Note:** Samsung Galaxy S26, iPhone 16 accessories, wireless earbuds, and more are included!")
 
     col1, col2 = st.columns([1, 4])
     with col1:
@@ -261,11 +262,11 @@ if research_mode == "Discover Hidden Niches":
                 progress_bar.progress((i + 1) / total)
                 status_text.text(f"Analyzing: {name[:40]}... ({i+1}/{total})")
 
-            with st.spinner("Discovering opportunities from trending topics..."):
+            with st.spinner("Discovering opportunities from trending keywords..."):
                 st.session_state.results = discover_niches(
                     categories=categories,
                     max_products=max_products,
-                    products_per_topic=products_per_topic,
+                    products_per_keyword=products_per_keyword,
                     progress_callback=update_progress
                 )
 

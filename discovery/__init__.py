@@ -1,3 +1,4 @@
 from .niche_finder import NicheFinder
 from .simple_niche_finder import SimpleNicheFinder
 from .trends_to_products_finder import TrendsToProductsFinder
+from .amazon_direct_finder import AmazonDirectFinder

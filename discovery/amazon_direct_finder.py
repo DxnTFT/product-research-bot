@@ -1,31 +1,54 @@
 """
-Trends to Products Discovery
-1. Get trending topics from Google Trends (past 7 days)
-2. Find actual products on Amazon related to those topics
-3. Validate sentiment on Reddit for those specific products
+Amazon Direct Product Finder
+Skip Google Trends entirely - just search Amazon for trending categories
 """
 
 import re
 from typing import List, Dict, Any
-from scrapers.trends_rising_simple import TrendsRisingSimple
 from scrapers.amazon_product_finder import AmazonProductFinder
 from scrapers import RedditScraper
 from analysis import SentimentAnalyzer
 
 
-class TrendsToProductsFinder:
+class AmazonDirectFinder:
     """
-    Find product opportunities from trending topics.
+    Find products by searching Amazon directly for trending keywords.
 
-    Flow:
-    1. Google Trends → Get rising queries for category keywords
-    2. Amazon → Find products related to those queries
-    3. Reddit → Validate sentiment on specific products
-    4. Score and rank
+    Since Google Trends APIs are unreliable/blocked, use curated trending
+    keywords for each category and search Amazon directly.
     """
+
+    # Curated trending keywords for each category
+    # Update these monthly based on what's actually trending
+    TRENDING_KEYWORDS = {
+        "technology": [
+            "samsung galaxy s26", "iphone 16 accessories", "wireless earbuds 2026",
+            "gaming laptop", "mechanical keyboard", "webcam", "usb c hub",
+            "portable monitor", "power bank", "phone gimbal"
+        ],
+        "fashion_beauty": [
+            "oversized hoodie", "platform shoes", "minimalist jewelry",
+            "korean skincare", "retinol serum", "makeup primer",
+            "hair growth oil", "nail art kit", "lash serum"
+        ],
+        "hobbies": [
+            "resin art kit", "embroidery supplies", "acrylic paint set",
+            "photography backdrop", "vinyl cutter", "3d printing pen",
+            "bullet journal", "watercolor brushes", "crochet hooks"
+        ],
+        "pets": [
+            "automatic cat feeder", "dog training collar", "cat water fountain",
+            "pet camera", "dog puzzle toy", "cat litter mat",
+            "dog anxiety vest", "bird toys", "hamster cage"
+        ],
+        "shopping": [
+            "air fryer", "stand mixer", "cordless vacuum", "coffee maker",
+            "sous vide", "electric kettle", "rice cooker", "blender",
+            "slow cooker", "food processor"
+        ],
+    }
 
     def __init__(self):
-        self.trends = TrendsRisingSimple(delay=2.0)
         self.amazon = AmazonProductFinder(delay=2.0)
         self.reddit = RedditScraper(delay=2.0)
         self.sentiment = SentimentAnalyzer()
@@ -34,46 +57,43 @@ class TrendsToProductsFinder:
         self,
         categories: List[str] = None,
         max_products: int = 30,
-        products_per_topic: int = 3,
+        products_per_keyword: int = 3,
         progress_callback=None
     ) -> List[Dict[str, Any]]:
         """
-        Discover product opportunities from trending topics.
+        Discover product opportunities.
 
         Args:
-            categories: Google Trends categories (e.g., ["technology", "fashion_beauty"])
+            categories: Categories to search
             max_products: Max products to return
-            products_per_topic: Products to find per trending topic
+            products_per_keyword: Products to find per keyword
             progress_callback: Progress update function
 
         Returns:
             List of product opportunities
         """
         print("\n" + "=" * 70)
-        print("TRENDS TO PRODUCTS DISCOVERY")
+        print("PRODUCT DISCOVERY - Amazon Direct Search")
         print("=" * 70)
 
-        # STEP 1: Get rising queries from Google Trends
-        print("\n[STEP 1] Getting rising queries from Google Trends...")
+        if categories is None:
+            categories = list(self.TRENDING_KEYWORDS.keys())
+
+        # Get keywords for selected categories
+        keywords = []
+        for category in categories:
+            if category in self.TRENDING_KEYWORDS:
+                keywords.extend(self.TRENDING_KEYWORDS[category])
+
+        print(f"\nSearching Amazon for {len(keywords)} trending keywords across {len(categories)} categories")
+
+        # STEP 1: Find products on Amazon
+        print("\n[STEP 1] Finding products on Amazon...")
         print("-" * 50)
-
-        rising_topics = self.trends.get_rising_topics(categories=categories, max_per_seed=5)
-
-        if not rising_topics:
-            print("  No rising topics found")
-            return []
-
-        print(f"\nFound {len(rising_topics)} rising queries")
-
-        # STEP 2: Find products on Amazon related to those queries
-        print("\n[STEP 2] Finding products on Amazon...")
-        print("-" * 50)
-
-        topic_names = [t['title'] for t in rising_topics[:15]]  # Top 15 queries
 
         products = self.amazon.find_products_batch(
-            topics=topic_names,
-            products_per_topic=products_per_topic
+            topics=keywords,
+            products_per_topic=products_per_keyword
         )
 
         if not products:
@@ -82,8 +102,8 @@ class TrendsToProductsFinder:
 
         print(f"\nFound {len(products)} products")
 
-        # STEP 3: Analyze Reddit sentiment for each product
-        print("\n[STEP 3] Analyzing Reddit sentiment...")
+        # STEP 2: Analyze Reddit sentiment
+        print("\n[STEP 2] Analyzing Reddit sentiment...")
         print("-" * 50)
 
         results = []
@@ -119,12 +139,13 @@ class TrendsToProductsFinder:
                 "amazon_reviews": product.get('reviews', 0),
                 "shopify_search_url": self._get_shopify_search_url(product['name']),
                 "keywords": keywords,
+                "category": self._get_category_for_topic(product.get('related_topic', ''))
             }
 
             result.update(reddit_data)
 
-            # Trend data (it's trending because it came from Trends)
-            result["trend_score"] = 80
+            # Trend data (these are curated trending keywords)
+            result["trend_score"] = 75
             result["trend_direction"] = "rising"
 
             # Calculate opportunity score
@@ -138,15 +159,21 @@ class TrendsToProductsFinder:
 
         return results
 
+    def _get_category_for_topic(self, topic: str) -> str:
+        """Get category for a topic."""
+        for category, keywords in self.TRENDING_KEYWORDS.items():
+            if topic.lower() in [k.lower() for k in keywords]:
+                return category
+        return "general"
+
     def _extract_keywords(self, product_name: str) -> List[str]:
         """Extract meaningful keywords from product name."""
-        # Clean the product name
         clean_name = product_name.lower()
 
-        # Remove brand names, sizes, colors, etc.
+        # Remove sizes, quantities, etc.
         clean_name = re.sub(r'\d+\s*(oz|ml|inch|pack|count|lb|kg|piece|set|mm|cm|ft)\b', '', clean_name, flags=re.IGNORECASE)
-        clean_name = re.sub(r'\([^)]*\)', '', clean_name)  # Remove parentheses
-        clean_name = re.sub(r'\[[^\]]*\]', '', clean_name)  # Remove brackets
+        clean_name = re.sub(r'\([^)]*\)', '', clean_name)
+        clean_name = re.sub(r'\[[^\]]*\]', '', clean_name)
 
         # Stop words
         stop_words = {
@@ -156,14 +183,12 @@ class TrendsToProductsFinder:
             'new', 'best', 'top', 'premium', 'professional'
         }
 
-        # Split and filter
         words = re.findall(r'\w+', clean_name)
         keywords = [
             word for word in words
             if word not in stop_words and len(word) > 2
         ]
 
-        # Return top 3 most meaningful
         return keywords[:3]
 
     def _get_shopify_search_url(self, product_name: str) -> str:
@@ -172,21 +197,10 @@ class TrendsToProductsFinder:
         return f"https://www.google.com/search?q={query.replace(' ', '+')}"
 
     def _get_reddit_sentiment(self, keywords: List[str], full_name: str) -> Dict[str, Any]:
-        """
-        Search Reddit using keywords and analyze sentiment.
-
-        Args:
-            keywords: Keywords to search for
-            full_name: Full product name for fallback
-
-        Returns:
-            Reddit sentiment data
-        """
-        # Try with keywords first
+        """Search Reddit and analyze sentiment."""
         query = ' '.join(keywords)
         posts = self.reddit.search_all_reddit(query, limit=20)
 
-        # If not enough posts, try with full name
         if len(posts) < 5:
             posts = self.reddit.search_all_reddit(full_name, limit=20)
 
@@ -199,7 +213,6 @@ class TrendsToProductsFinder:
                 "sentiment_ratio": 0.5,
             }
 
-        # Analyze sentiment
         sentiments = []
         for post in posts:
             text = f"{post.get('title', '')} {post.get('content', '')}"
@@ -210,7 +223,6 @@ class TrendsToProductsFinder:
                 "upvotes": post.get("upvotes", 0),
             })
 
-        # Weighted sentiment
         total_weight = sum(max(s["upvotes"], 1) for s in sentiments)
         weighted_sentiment = sum(
             s["score"] * max(s["upvotes"], 1) for s in sentiments
@@ -230,19 +242,10 @@ class TrendsToProductsFinder:
         }
 
     def _calculate_opportunity_score(self, product: Dict[str, Any]) -> float:
-        """
-        Calculate opportunity score (0-100).
+        """Calculate opportunity score (0-100)."""
+        base_score = 40  # Curated trending keyword
 
-        Factors:
-        - Trending topic (base 40 pts)
-        - Low Amazon competition (0-30 pts based on reviews)
-        - Reddit sentiment (0-30 pts)
-        """
-        # Base score for being related to a trending topic
-        base_score = 40
-
-        # Amazon competition (0-30 pts)
-        # Fewer reviews = less saturated = higher score
+        # Amazon competition (fewer reviews = less saturated)
         reviews = product.get("amazon_reviews", 0)
 
         if reviews == 0:
@@ -258,13 +261,12 @@ class TrendsToProductsFinder:
         else:
             competition_score = 5
 
-        # Reddit sentiment (0-30 pts)
+        # Reddit sentiment
         sentiment = product.get("reddit_sentiment", 0)
         posts = product.get("reddit_posts", 0)
 
         sentiment_component = ((sentiment + 1) / 2) * 25
 
-        # Discussion bonus
         import math
         discussion_bonus = min(5, math.log10(posts + 1) * 2.5)
 
