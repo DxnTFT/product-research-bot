@@ -459,9 +459,9 @@ def show_product_history(query: str):
     print("=" * 80)
 
     for product in products:
-        print(f"\n{'─' * 70}")
+        print(f"\n{'-' * 70}")
         print(f"Product: {product.name[:60]}")
-        print(f"{'─' * 70}")
+        print(f"{'-' * 70}")
         print(f"  Times Seen: {product.times_seen}")
         print(f"  First Seen: {product.first_seen.strftime('%Y-%m-%d') if product.first_seen else 'N/A'}")
         print(f"  Last Seen:  {product.last_seen.strftime('%Y-%m-%d') if product.last_seen else 'N/A'}")
@@ -501,9 +501,9 @@ def show_run_details(run_id: int):
     snapshots = db.get_run_products(run_id)
 
     if snapshots:
-        print(f"\n{'─' * 80}")
+        print(f"\n{'-' * 80}")
         print("PRODUCTS IN THIS RUN (sorted by score)")
-        print(f"{'─' * 80}")
+        print(f"{'-' * 80}")
         print(f"{'#':<4} {'Score':<8} {'Sentiment':<12} {'Product Name'}")
         print("-" * 80)
 
@@ -539,9 +539,9 @@ def compare_discovery_runs(run_id_1: int, run_id_2: int):
     print(f"Run #{run_id_2}: {date2} | {run2.products_found} products | Avg: {run2.avg_score:.1f}")
 
     summary = comparison['summary']
-    print(f"\n{'─' * 60}")
+    print(f"\n{'-' * 60}")
     print(f"New Products: {summary['new_count']} | Recurring: {summary['recurring_count']} | Dropped: {summary['dropped_count']}")
-    print(f"{'─' * 60}")
+    print(f"{'-' * 60}")
 
     # Show new products
     if comparison['new_products']:
@@ -560,8 +560,8 @@ def compare_discovery_runs(run_id_1: int, run_id_2: int):
         print(f"\nRECURRING PRODUCTS (score changes):")
         for p in comparison['recurring_products'][:10]:
             change = p['score_change']
-            arrow = "↑" if change > 0 else "↓" if change < 0 else "→"
-            print(f"  {arrow} {p['name'][:45]} ({p['score_old']:.1f} → {p['score_new']:.1f}, {change:+.1f})")
+            arrow = "^" if change > 0 else "v" if change < 0 else "="
+            print(f"  {arrow} {p['name'][:45]} ({p['score_old']:.1f} -> {p['score_new']:.1f}, {change:+.1f})")
 
 
 def main():
