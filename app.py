@@ -22,19 +22,188 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS - Clean, professional styling
+# Load Google Fonts + RPG Theme CSS
 st.markdown("""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <style>
+    /* RPG Color Variables */
+    :root {
+        --parchment: #f4e4bc;
+        --parchment-dark: #e8d5a3;
+        --ink: #2c1810;
+        --gold: #c9a227;
+        --gold-light: #e8c547;
+        --leather: #8b4513;
+        --leather-dark: #5c2e0a;
+        --blood: #8b0000;
+        --emerald: #2e5a3a;
+    }
+
+    /* Parchment background texture */
+    .stApp {
+        background:
+            linear-gradient(135deg, rgba(244,228,188,0.9) 0%, rgba(232,213,163,0.9) 100%),
+            repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 2px,
+                rgba(139,69,19,0.03) 2px,
+                rgba(139,69,19,0.03) 4px
+            );
+    }
+
+    /* Main header - ornate medieval */
     .main-header {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #212529;
-        margin-bottom: 0.5rem;
+        font-family: 'Cinzel', serif;
+        font-size: 2.8rem;
+        font-weight: 900;
+        color: var(--ink);
+        margin-bottom: 0.25rem;
+        letter-spacing: 0.05em;
+        text-shadow: 2px 2px 0 var(--gold);
     }
     .sub-header {
-        font-size: 1rem;
-        color: #6c757d;
+        font-family: 'Crimson Pro', serif;
+        font-size: 1.15rem;
+        font-weight: 400;
+        font-style: italic;
+        color: var(--leather);
         margin-top: 0;
+    }
+
+    /* Ornate section headers */
+    h3 {
+        font-family: 'Cinzel', serif !important;
+        font-weight: 700 !important;
+        color: var(--ink) !important;
+        letter-spacing: 0.03em !important;
+        border-bottom: 2px solid var(--gold) !important;
+        padding-bottom: 0.5rem !important;
+    }
+
+    /* Medieval buttons */
+    .stButton > button {
+        font-family: 'Cinzel', serif;
+        background: linear-gradient(180deg, var(--leather) 0%, var(--leather-dark) 100%);
+        color: var(--parchment);
+        border: 2px solid var(--gold);
+        border-radius: 2px;
+        padding: 0.7rem 1.5rem;
+        font-weight: 700;
+        font-size: 0.85rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        transition: all 0.2s ease;
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.2),
+            0 4px 8px rgba(0,0,0,0.3);
+    }
+    .stButton > button:hover {
+        background: linear-gradient(180deg, var(--gold) 0%, var(--leather) 100%);
+        color: var(--ink);
+        transform: translateY(-2px);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.3),
+            0 6px 12px rgba(0,0,0,0.4);
+    }
+
+    /* Score badges - treasure ratings */
+    .score-high {
+        font-family: 'Cinzel', serif;
+        background: linear-gradient(180deg, var(--gold) 0%, #a08020 100%);
+        color: var(--ink);
+        padding: 8px 16px;
+        border: 2px solid var(--leather);
+        border-radius: 2px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        display: inline-block;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .score-medium {
+        font-family: 'Cinzel', serif;
+        background: linear-gradient(180deg, #c0c0c0 0%, #808080 100%);
+        color: var(--ink);
+        padding: 8px 16px;
+        border: 2px solid var(--leather);
+        border-radius: 2px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        display: inline-block;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .score-low {
+        font-family: 'Cinzel', serif;
+        background: linear-gradient(180deg, #cd7f32 0%, #8b4513 100%);
+        color: var(--parchment);
+        padding: 8px 16px;
+        border: 2px solid var(--leather-dark);
+        border-radius: 2px;
+        font-weight: 700;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+        display: inline-block;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* Progress bar - gold fill */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, var(--gold) 0%, var(--gold-light) 100%);
+    }
+
+    /* Links styled as scrolls */
+    .stLinkButton > a {
+        font-family: 'Cinzel', serif;
+        background: var(--parchment);
+        border: 2px solid var(--leather);
+        color: var(--ink);
+        border-radius: 2px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        transition: all 0.2s ease;
+    }
+    .stLinkButton > a:hover {
+        background: var(--gold);
+        border-color: var(--leather-dark);
+    }
+
+    /* Sidebar - darker parchment */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, var(--parchment-dark) 0%, #d4c090 100%);
+        border-right: 3px solid var(--leather);
+    }
+
+    /* Text inputs */
+    .stTextArea textarea, .stTextInput input {
+        font-family: 'Crimson Pro', serif;
+        background: var(--parchment);
+        border: 2px solid var(--leather);
+        border-radius: 2px;
+        color: var(--ink);
+    }
+
+    /* Selectbox */
+    .stSelectbox > div > div {
+        font-family: 'Crimson Pro', serif;
+        background: var(--parchment);
+        border: 2px solid var(--leather);
+    }
+
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        font-family: 'Cinzel', serif;
+        color: var(--ink);
+    }
+
+    /* Expander */
+    .streamlit-expanderHeader {
+        font-family: 'Cinzel', serif;
+        background: var(--parchment-dark);
+        border: 1px solid var(--leather);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -56,18 +225,18 @@ def get_sentiment_badge(sentiment):
 
 
 def get_score_badge(score):
-    """Get score badge with color."""
+    """Get score badge with RPG treasure rating."""
     if score >= 70:
-        color = "#28a745"  # Green
-        label = "HIGH"
+        css_class = "score-high"
+        label = "GOLD"
     elif score >= 50:
-        color = "#ffc107"  # Yellow
-        label = "MODERATE"
+        css_class = "score-medium"
+        label = "SILVER"
     else:
-        color = "#dc3545"  # Red
-        label = "LOW"
+        css_class = "score-low"
+        label = "BRONZE"
 
-    return f'<span style="background-color: {color}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{score:.1f} - {label}</span>'
+    return f'<span class="{css_class}">{score:.1f} - {label}</span>'
 
 
 @st.cache_resource
@@ -84,14 +253,20 @@ def load_scrapers():
     }
 
 
-def discover_niches(categories, max_products, products_per_keyword, progress_callback=None):
-    """Discover product opportunities from trending keywords."""
-    from discovery.amazon_direct_finder import AmazonDirectFinder
-    finder = AmazonDirectFinder()
+def discover_niches(categories, max_products, niche_types=None, include_amazon_sentiment=True, progress_callback=None):
+    """Discover product opportunities from real Google Trends data."""
+    from discovery.trends_to_products_finder import TrendsToProductsFinder
+    finder = TrendsToProductsFinder()
+
+    if niche_types is None:
+        niche_types = ["accessories", "alternatives", "complementary"]
+
     return finder.discover_opportunities(
         categories=categories,
         max_products=max_products,
-        products_per_keyword=products_per_keyword,
+        products_per_topic=3,
+        niche_types=niche_types,
+        include_amazon_sentiment=include_amazon_sentiment,
         progress_callback=progress_callback
     )
 
@@ -186,66 +361,99 @@ def fetch_amazon_trending(categories, limit_per_category, progress_callback=None
 
 
 # Header
-st.markdown('<p class="main-header">Product Research Bot</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Find trending products and validate with real user sentiment</p>', unsafe_allow_html=True)
-st.markdown("---")
+st.markdown('<p class="main-header">The Merchant\'s Ledger</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Seek treasures of the marketplace, divine their worth through the wisdom of the realm</p>', unsafe_allow_html=True)
+st.markdown("")
 
 # Sidebar
 with st.sidebar:
-    st.header("Settings")
+    st.markdown("### Settings")
 
     research_mode = st.radio(
         "Research Mode",
-        ["Discover Hidden Niches", "Manual Products", "Amazon Trending"],
+        ["Discover Trends", "Manual Products", "Amazon Trending"],
         help="Choose how to find products to research"
     )
 
+    # Map display names to internal names
+    mode_map = {
+        "Discover Trends": "Discover Hidden Niches",
+        "Manual Products": "Manual Products",
+        "Amazon Trending": "Amazon Trending"
+    }
+    internal_mode = mode_map[research_mode]
+
     skip_trends = st.checkbox(
-        "Skip Google Trends",
+        "Skip Google Trends validation",
         value=True,
         help="Faster but less data. Uncheck to validate with Google Trends."
     )
 
     st.markdown("---")
-    st.markdown("**Score Guide**")
-    st.markdown("- **70-100:** High opportunity")
-    st.markdown("- **50-69:** Moderate")
-    st.markdown("- **0-49:** Low opportunity")
+    st.markdown("### Treasure Rating")
+    st.markdown("""
+    <div style='font-family: Cinzel, serif; background: linear-gradient(180deg, #c9a227 0%, #a08020 100%); color: #2c1810; padding: 8px 12px; border: 2px solid #8b4513; margin-bottom: 8px;'>
+        <strong>GOLD (70-100)</strong><br/>Legendary find
+    </div>
+    <div style='font-family: Cinzel, serif; background: linear-gradient(180deg, #c0c0c0 0%, #808080 100%); color: #2c1810; padding: 8px 12px; border: 2px solid #8b4513; margin-bottom: 8px;'>
+        <strong>SILVER (50-69)</strong><br/>Worthy pursuit
+    </div>
+    <div style='font-family: Cinzel, serif; background: linear-gradient(180deg, #cd7f32 0%, #8b4513 100%); color: #f4e4bc; padding: 8px 12px; border: 2px solid #5c2e0a;'>
+        <strong>BRONZE (0-49)</strong><br/>Common goods
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
-    st.markdown("**Tips**")
-    st.markdown("- Look for positive sentiment")
-    st.markdown("- Check marketplace links")
-    st.markdown("- More Reddit posts = more confidence")
+    st.markdown("### Scout's Wisdom")
+    st.markdown("*Seek positive sentiment*")
+    st.markdown("*Verify at the marketplace*")
+    st.markdown("*Many voices speak truth*")
 
 # Main content
-if research_mode == "Discover Hidden Niches":
-    st.header("Discover Hidden Niches")
-    st.markdown("**Find products related to trending topics**")
-    st.markdown("Gets trending topics from Google Trends, finds related products on Amazon, validates sentiment on Reddit")
+if internal_mode == "Discover Hidden Niches":
+    st.markdown("### Discover Hidden Niches")
+    st.markdown("**Find products related to what's actually trending right now**")
+    st.markdown("Queries Google Trends for rising topics, searches Amazon for related products, validates sentiment on Reddit + Amazon reviews")
 
     col1, col2 = st.columns(2)
 
     with col1:
         categories = st.multiselect(
             "Google Trends Categories:",
-            ["fashion_beauty", "hobbies", "pets", "shopping", "technology"],
-            default=["technology", "shopping"],
-            help="Categories to scan on Google Trends (past 7 days)"
+            ["fashion_beauty", "hobbies", "pets", "shopping", "technology", "health", "home"],
+            default=["technology"],
+            help="Categories to scan on Google Trends for rising queries"
         )
 
     with col2:
-        max_products = st.slider("Max products to return:", 10, 50, 20)
+        max_products = st.slider("Max products to analyze:", 5, 30, 10)
 
-    products_per_keyword = st.slider("Products per keyword:", 1, 5, 3, help="How many products to find for each trending keyword")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        niche_types = st.multiselect(
+            "Niche Types to Find:",
+            ["accessories", "alternatives", "complementary"],
+            default=["accessories", "alternatives", "complementary"],
+            help="Types of niche products to discover for each trending topic"
+        )
+
+    with col2:
+        include_amazon_sentiment = st.checkbox(
+            "Analyze Amazon Reviews",
+            value=True,
+            help="Scrape and analyze Amazon reviews for sentiment (slower but more accurate)"
+        )
 
     st.markdown("---")
     st.markdown("**How it works:**")
-    st.markdown("1. Uses curated trending keywords for each category (updated monthly)")
-    st.markdown("2. Searches Amazon directly for products matching those keywords")
-    st.markdown("3. Extracts keywords and validates Reddit sentiment on specific products")
-    st.markdown("4. Provides Amazon links and Shopify search URLs")
-    st.markdown("**Note:** Samsung Galaxy S26, iPhone 16 accessories, wireless earbuds, and more are included!")
+    st.markdown("1. Queries Google Trends API for **real rising topics** (past 30 days)")
+    st.markdown("2. Generates niche product searches (accessories, alternatives, complementary)")
+    st.markdown("3. Searches Amazon via browser automation for related products")
+    st.markdown("4. Analyzes sentiment from **Reddit + Amazon reviews**")
+    st.markdown("5. Scores based on competition, sentiment, and niche type")
+    st.markdown("")
+    st.warning("**Note:** This uses rate-limited APIs. Discovery takes 3-8 minutes depending on settings.")
 
     col1, col2 = st.columns([1, 4])
     with col1:
@@ -254,28 +462,46 @@ if research_mode == "Discover Hidden Niches":
     if discover_btn:
         if not categories:
             st.error("Please select at least one category")
+        elif not niche_types:
+            st.error("Please select at least one niche type")
         else:
-            progress_bar = st.progress(0)
-            status_text = st.empty()
+            # Progress tracking with detailed status
+            progress_container = st.container()
+            with progress_container:
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                detail_text = st.empty()
+                live_results = st.empty()
 
-            def update_progress(i, total, name):
-                progress_bar.progress((i + 1) / total)
-                status_text.text(f"Analyzing: {name[:40]}... ({i+1}/{total})")
+            discovered_products = []
 
-            with st.spinner("Discovering opportunities from trending keywords..."):
+            def update_progress(step, total, item="", message=""):
+                if total > 0:
+                    progress_bar.progress(min(step / total, 1.0))
+                status_text.text(f"{message} {item[:50] if item else ''}")
+                detail_text.text(f"Step {step}/{total}")
+
+                # Show live results count
+                if discovered_products:
+                    live_results.info(f"Found {len(discovered_products)} products so far...")
+
+            with st.spinner("Discovering trends and searching Amazon..."):
                 st.session_state.results = discover_niches(
                     categories=categories,
                     max_products=max_products,
-                    products_per_keyword=products_per_keyword,
+                    niche_types=niche_types,
+                    include_amazon_sentiment=include_amazon_sentiment,
                     progress_callback=update_progress
                 )
 
             progress_bar.empty()
             status_text.empty()
+            detail_text.empty()
+            live_results.empty()
             st.success(f"Discovered {len(st.session_state.results)} opportunities!")
 
-elif research_mode == "Manual Products":
-    st.header("Research Specific Products")
+elif internal_mode == "Manual Products":
+    st.markdown("### Research Specific Products")
     st.markdown("Enter product names to research (one per line)")
 
     products_input = st.text_area(
@@ -314,7 +540,7 @@ elif research_mode == "Manual Products":
             st.success(f"Researched {len(st.session_state.results)} products!")
 
 else:  # Amazon Trending
-    st.header("Amazon Trending Products")
+    st.markdown("### Amazon Trending Products")
     st.markdown("Automatically fetch products from Amazon Movers & Shakers")
 
     col1, col2 = st.columns(2)
@@ -385,7 +611,7 @@ else:  # Amazon Trending
 # Display results
 if st.session_state.results:
     st.markdown("---")
-    st.header("Results")
+    st.markdown("### Results")
 
     results = st.session_state.results
 
@@ -524,8 +750,11 @@ if st.session_state.results:
 # Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #888;'>"
-    "Product Research Bot • Built for E-commerce Product Discovery"
-    "</div>",
+    """
+    <div style='text-align: center; padding: 1.5rem 0; font-family: Cinzel, serif;'>
+        <p style='color: #2c1810; font-weight: 700; margin-bottom: 0.25rem; letter-spacing: 0.1em;'>THE MERCHANT'S LEDGER</p>
+        <p style='color: #8b4513; font-size: 0.85rem; font-family: Crimson Pro, serif; font-style: italic;'>Fortune favors the prepared trader</p>
+    </div>
+    """,
     unsafe_allow_html=True
 )

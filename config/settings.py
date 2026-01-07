@@ -97,7 +97,7 @@ SCRAPE_SETTINGS = {
     "min_comments": 5,  # Minimum comments to consider
     "include_comments": False,  # Disable comments for now (causes 403s)
     "comments_per_post": 10,  # Top comments to analyze per post
-    "delay_between_requests": 4,  # Seconds between requests (be nice to Reddit)
+    "delay_between_requests": 25,  # Seconds between requests (increased from 4 to 25)
 }
 
 # Scoring weights for product opportunity
@@ -116,4 +116,55 @@ DATABASE_PATH = "data/products.db"
 REPORT_SETTINGS = {
     "top_products": 20,  # Number of top products to show in reports
     "export_formats": ["csv", "json"],
+}
+
+# Anti-blocking and rate limiting settings
+RATE_LIMIT_SETTINGS = {
+    "base_delay": 15.0,  # Base delay between requests (seconds) - FASTER MODE
+    "max_jitter": 2.0,  # Random jitter +/- seconds
+    "min_delay": 8.0,  # Minimum delay (safety floor) - FASTER MODE
+
+    # Exponential backoff settings
+    "exponential_backoff": {
+        "first_retry": 60,  # 1 minute
+        "second_retry": 120,  # 2 minutes
+        "third_retry": 300,  # 5 minutes
+        "max_retries": 3,
+        "backoff_factor": 2.0,  # Multiply by this each retry
+    },
+
+    # Circuit breaker settings
+    "circuit_breaker": {
+        "failure_threshold": 3,  # Consecutive failures before opening
+        "recovery_timeout": 600,  # 10 minutes before trying again
+        "half_open_requests": 1,  # Requests to try when half-open
+    },
+
+    # Domain-specific settings
+    "domains": {
+        "amazon.com": {
+            "delay": 15.0,  # FASTER MODE
+            "max_requests_per_minute": 4,  # FASTER MODE
+        },
+        "trends.google.com": {
+            "delay": 25.0,
+            "max_requests_per_minute": 2,
+        },
+    },
+}
+
+# Stealth settings for anti-bot detection evasion
+STEALTH_SETTINGS = {
+    "rotate_user_agent": True,
+    "randomize_viewport": True,
+    "randomize_timezone": True,
+    "simulate_human_behavior": True,
+    "use_fingerprint_evasion": True,
+
+    # Playwright settings
+    "playwright": {
+        "headless": True,
+        "slow_mo": 100,  # Slow down operations by 100ms
+        "navigation_timeout": 60000,  # 60 seconds
+    },
 }

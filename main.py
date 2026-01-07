@@ -13,7 +13,7 @@ from typing import List, Dict, Any
 from scrapers import AmazonScraper, TrendsScraper, RedditScraper, get_amazon_trending
 from analysis import SentimentAnalyzer, ProductScorer
 from reports import ReportGenerator
-from discovery import NicheFinder
+from discovery import TrendsToProductsFinder
 
 
 class ProductResearchBot:
@@ -250,21 +250,41 @@ class ProductResearchBot:
         # Export
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Prepare export data
+        # Prepare export data - map to CSV field names
         export_data = []
         for p in products:
             export_data.append({
                 "name": p.get("name", ""),
-                "category": p.get("category", ""),
+                "price": p.get("price", ""),
+                "niche_type": p.get("niche_type", "") or p.get("search_keyword", "")[:15],
                 "opportunity_score": p.get("opportunity_score", 0),
-                "trend_direction": p.get("trend_direction", ""),
-                "trend_score": p.get("trend_score", 0),
+                # Profit margin estimates
+                "estimated_profit": p.get("estimated_profit", 0),
+                "profit_margin_pct": p.get("profit_margin_pct", 0),
+                "estimated_cogs": p.get("estimated_cogs", 0),
+                # Sourcing
+                "estimated_supplier_price": p.get("estimated_supplier_price", 0),
+                "alibaba_url": p.get("alibaba_url", ""),
+                "aliexpress_url": p.get("aliexpress_url", ""),
+                "sourcing_recommendation": p.get("sourcing_recommendation", ""),
+                # Competition analysis
+                "competition_score": p.get("competition_score", 0),
+                "competition_level": p.get("competition_level", ""),
+                "entry_difficulty": p.get("entry_difficulty", ""),
+                # Seasonality
+                "is_seasonal": p.get("is_seasonal", False),
+                "season_type": p.get("season_type", ""),
+                # Amazon product data
+                "amazon_url": p.get("amazon_url", "") or p.get("url", ""),
+                "amazon_rating": p.get("amazon_rating", 0) or p.get("rating", 0),
+                "amazon_review_count": p.get("amazon_review_count", 0) or p.get("reviews", 0),
+                # Reddit sentiment
                 "reddit_sentiment": p.get("reddit_sentiment", 0),
                 "reddit_posts": p.get("reddit_posts", 0),
+                "reddit_comments": p.get("reddit_comments", 0),
+                # Combined
+                "combined_sentiment": p.get("combined_sentiment", 0),
                 "sentiment_ratio": p.get("sentiment_ratio", 0),
-                "price": p.get("price", ""),
-                "rating": p.get("rating", 0),
-                "url": p.get("url", ""),
             })
 
         csv_path = self.reporter.export_csv(export_data, f"opportunities_{timestamp}")
@@ -433,23 +453,106 @@ def main():
         help="Seed keywords for niche discovery (default: kitchen fitness home)"
     )
     parser.add_argument(
-        "--max-products", type=int, default=30,
-        help="Max products to analyze in discovery mode (default: 30)"
+        "--max-products", type=int, default=10,
+        help="Max products to analyze in discovery mode (default: 10)"
+    )
+    parser.add_argument(
+        "--fast", action="store_true", default=True,
+        help="Use fast async mode with parallel Reddit (default: True)"
+    )
+    parser.add_argument(
+        "--slow", action="store_true",
+        help="Use original slow sequential mode"
+    )
+    parser.add_argument(
+        "--min-price", type=float, default=0.0,
+        help="Minimum product price filter (default: 0 = no filter)"
+    )
+    parser.add_argument(
+        "--keywords", "-k", nargs="+",
+        help="Custom product keywords to search (skips Google Trends). Example: -k 'posture corrector' 'led face mask'"
+    )
+    parser.add_argument(
+        "--amazon-reviews", action="store_true",
+        help="Include Amazon review sentiment analysis (slower but more accurate)"
     )
 
     args = parser.parse_args()
 
-    if args.discover:
-        # NEW: Discover hidden niches mode
-        finder = NicheFinder()
-        opportunities = finder.discover_niches(
-            seed_keywords=args.seed_keywords,
-            max_products=args.max_products
-        )
+    if args.discover or args.keywords:
+        finder = TrendsToProductsFinder()
+
+        # Check if using custom keywords (skip Google Trends)
+        if args.keywords:
+            print("\n" + "=" * 70)
+            print("CUSTOM KEYWORDS MODE - Skipping Google Trends")
+            print("=" * 70)
+            print(f"Keywords: {', '.join(args.keywords)}")
+            if args.min_price > 0:
+                print(f"Filtering for products >= ${args.min_price:.0f}")
+
+            print("\nSearching Amazon + Reddit sentiment...")
+            opportunities = finder.search_custom_keywords(
+                keywords=args.keywords,
+                max_products=args.max_products,
+                min_price=args.min_price,
+                include_amazon_reviews=args.amazon_reviews
+            )
+        else:
+            # Discover hidden niches mode - uses real Google Trends data
+            print("\n" + "=" * 70)
+            print("DISCOVER MODE - Finding products from real Google Trends data")
+            print("=" * 70)
+
+            # Map seed keywords to Google Trends categories
+            category_map = {
+                "kitchen": "shopping",
+                "fitness": "shopping",
+                "home": "shopping",
+                "tech": "technology",
+                "technology": "technology",
+                "beauty": "fashion_beauty",
+                "fashion": "fashion_beauty",
+                "pets": "pets",
+                "hobbies": "hobbies",
+            }
+
+            # Convert seed keywords to categories
+            categories = []
+            for kw in args.seed_keywords:
+                cat = category_map.get(kw.lower(), "shopping")
+                if cat not in categories:
+                    categories.append(cat)
+
+            # Use fast async mode by default, unless --slow is specified
+            if args.min_price > 0:
+                print(f"Filtering for products >= ${args.min_price:.0f}")
+
+            if args.slow:
+                print("Using SLOW sequential mode...")
+                print("This will take 5-10 minutes due to rate limiting...")
+                opportunities = finder.discover_opportunities(
+                    categories=categories,
+                    max_products=args.max_products,
+                    products_per_topic=3,
+                    min_price=args.min_price
+                )
+            else:
+                print("Using FAST async mode with parallel Reddit sentiment...")
+                print("Expected time: 3-4 minutes")
+                opportunities = finder.discover_opportunities_fast(
+                    categories=categories,
+                    max_products=args.max_products,
+                    products_per_topic=3,
+                    min_price=args.min_price
+                )
 
         # Generate report
-        bot = ProductResearchBot()
-        bot._generate_report(opportunities)
+        if opportunities:
+            bot = ProductResearchBot()
+            bot._generate_report(opportunities)
+        else:
+            print("\nNo opportunities found. Try different keywords or check rate limits.")
     else:
         bot = ProductResearchBot()
 

@@ -80,7 +80,7 @@ class ReportGenerator:
 
     def export_csv(self, products: List[Dict], filename: str = None) -> str:
         """
-        Export products to CSV file.
+        Export products to CSV file with all relevant columns.
 
         Args:
             products: List of product dictionaries
@@ -90,23 +90,59 @@ class ReportGenerator:
             Path to created file
         """
         if not filename:
-            filename = f"products_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            filename = f"opportunities_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
         filepath = os.path.join(self.output_dir, f"{filename}.csv")
 
         if not products:
             return filepath
 
-        # Determine fields
+        # Streamlined fields for product research export
         fields = [
-            "name", "category", "opportunity_score", "total_mentions",
-            "avg_sentiment", "first_seen", "last_seen"
+            # Core info
+            "name",
+            "price",
+            "niche_type",  # Short keyword
+            "opportunity_score",
+            # Profit margin estimates
+            "estimated_profit",
+            "profit_margin_pct",
+            "estimated_cogs",
+            # Sourcing
+            "estimated_supplier_price",
+            "alibaba_url",
+            "aliexpress_url",
+            "sourcing_recommendation",
+            # Competition analysis
+            "competition_score",
+            "competition_level",
+            "entry_difficulty",
+            # Seasonality
+            "is_seasonal",
+            "season_type",
+            # Amazon product data
+            "amazon_url",
+            "amazon_rating",
+            "amazon_review_count",
+            # Reddit sentiment
+            "reddit_sentiment",
+            "reddit_posts",
+            "reddit_comments",
+            # Combined
+            "combined_sentiment",
+            "sentiment_ratio",
         ]
 
         with open(filepath, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
             writer.writeheader()
-            writer.writerows(products)
+
+            for product in products:
+                # Convert list fields to strings
+                row = product.copy()
+                if isinstance(row.get('keywords'), list):
+                    row['keywords'] = ', '.join(row['keywords'])
+                writer.writerow(row)
 
         print(f"CSV exported to: {filepath}")
         return filepath

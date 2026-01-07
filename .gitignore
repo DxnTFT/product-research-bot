@@ -34,3 +34,6 @@ logs/
 # Reports (generated files)
 reports/*.csv
 reports/*.json
+
+# Auto Claude data directory
+.auto-claude/
