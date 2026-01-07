@@ -14,6 +14,8 @@ from scrapers import AmazonScraper, TrendsScraper, RedditScraper, get_amazon_tre
 from analysis import SentimentAnalyzer, ProductScorer
 from reports import ReportGenerator
 from discovery import TrendsToProductsFinder
+from database import Database
+import json
 
 
 class ProductResearchBot:
@@ -413,6 +415,155 @@ class ProductResearchBot:
             print(f"Error reading file: {e}")
 
 
+# =========================================================================
+# History CLI Functions
+# =========================================================================
+
+def show_recent_runs(limit: int = 20):
+    """Display recent discovery runs."""
+    db = Database()
+    runs = db.get_recent_runs(limit=limit)
+
+    if not runs:
+        print("\nNo discovery runs found in history.")
+        print("Run a discovery first: python main.py --discover")
+        return
+
+    print("\n" + "=" * 80)
+    print("RECENT DISCOVERY RUNS")
+    print("=" * 80)
+    print(f"{'ID':<6} {'Timestamp':<20} {'Mode':<18} {'Products':<10} {'Avg Score':<10} {'Duration'}")
+    print("-" * 80)
+
+    for run in runs:
+        timestamp = run.run_timestamp.strftime("%Y-%m-%d %H:%M") if run.run_timestamp else "N/A"
+        duration = f"{run.duration_seconds}s" if run.duration_seconds else "N/A"
+        print(f"{run.id:<6} {timestamp:<20} {run.mode:<18} {run.products_found:<10} {run.avg_score:<10.1f} {duration}")
+
+    print("-" * 80)
+    print(f"Total: {len(runs)} runs")
+    print("\nTip: Use --run-details <ID> to see products from a specific run")
+
+
+def show_product_history(query: str):
+    """Show history for products matching a query."""
+    db = Database()
+    products = db.search_products(query, limit=10)
+
+    if not products:
+        print(f"\nNo products found matching '{query}'")
+        return
+
+    print("\n" + "=" * 80)
+    print(f"PRODUCT HISTORY: '{query}'")
+    print("=" * 80)
+
+    for product in products:
+        print(f"\n{'─' * 70}")
+        print(f"Product: {product.name[:60]}")
+        print(f"{'─' * 70}")
+        print(f"  Times Seen: {product.times_seen}")
+        print(f"  First Seen: {product.first_seen.strftime('%Y-%m-%d') if product.first_seen else 'N/A'}")
+        print(f"  Last Seen:  {product.last_seen.strftime('%Y-%m-%d') if product.last_seen else 'N/A'}")
+        print(f"  Score Range: {product.lowest_score:.1f} - {product.highest_score:.1f}")
+        print(f"  Current Score: {product.opportunity_score:.1f}")
+
+        # Get recent snapshots
+        history = db.get_product_history(product.id, limit=5)
+        if history:
+            print(f"\n  Recent History:")
+            for snap in history:
+                run_date = snap.discovery_run.run_timestamp.strftime("%m/%d") if snap.discovery_run else "?"
+                print(f"    [{run_date}] Score: {snap.opportunity_score:.1f} | Sentiment: {snap.reddit_sentiment:.2f}")
+
+
+def show_run_details(run_id: int):
+    """Show details of a specific discovery run."""
+    db = Database()
+    run = db.get_run_by_id(run_id)
+
+    if not run:
+        print(f"\nRun #{run_id} not found")
+        return
+
+    print("\n" + "=" * 80)
+    print(f"DISCOVERY RUN #{run_id}")
+    print("=" * 80)
+    print(f"Timestamp: {run.run_timestamp.strftime('%Y-%m-%d %H:%M:%S') if run.run_timestamp else 'N/A'}")
+    print(f"Mode: {run.mode}")
+    print(f"Categories: {run.categories}")
+    print(f"Settings: {run.settings}")
+    print(f"Products Found: {run.products_found}")
+    print(f"Average Score: {run.avg_score:.1f}")
+    print(f"Duration: {run.duration_seconds}s" if run.duration_seconds else "Duration: N/A")
+
+    # Get products from this run
+    snapshots = db.get_run_products(run_id)
+
+    if snapshots:
+        print(f"\n{'─' * 80}")
+        print("PRODUCTS IN THIS RUN (sorted by score)")
+        print(f"{'─' * 80}")
+        print(f"{'#':<4} {'Score':<8} {'Sentiment':<12} {'Product Name'}")
+        print("-" * 80)
+
+        for i, snap in enumerate(snapshots[:30], 1):
+            sent_label = "+" if snap.reddit_sentiment > 0.05 else "-" if snap.reddit_sentiment < -0.05 else "~"
+            print(f"{i:<4} {snap.opportunity_score:<8.1f} {sent_label}{abs(snap.reddit_sentiment):<10.2f} {snap.product.name[:55]}")
+
+
+def compare_discovery_runs(run_id_1: int, run_id_2: int):
+    """Compare two discovery runs."""
+    db = Database()
+
+    run1 = db.get_run_by_id(run_id_1)
+    run2 = db.get_run_by_id(run_id_2)
+
+    if not run1:
+        print(f"\nRun #{run_id_1} not found")
+        return
+    if not run2:
+        print(f"\nRun #{run_id_2} not found")
+        return
+
+    comparison = db.compare_runs(run_id_1, run_id_2)
+
+    print("\n" + "=" * 80)
+    print(f"COMPARING RUN #{run_id_1} vs RUN #{run_id_2}")
+    print("=" * 80)
+
+    date1 = run1.run_timestamp.strftime("%Y-%m-%d %H:%M") if run1.run_timestamp else "N/A"
+    date2 = run2.run_timestamp.strftime("%Y-%m-%d %H:%M") if run2.run_timestamp else "N/A"
+
+    print(f"\nRun #{run_id_1}: {date1} | {run1.products_found} products | Avg: {run1.avg_score:.1f}")
+    print(f"Run #{run_id_2}: {date2} | {run2.products_found} products | Avg: {run2.avg_score:.1f}")
+
+    summary = comparison['summary']
+    print(f"\n{'─' * 60}")
+    print(f"New Products: {summary['new_count']} | Recurring: {summary['recurring_count']} | Dropped: {summary['dropped_count']}")
+    print(f"{'─' * 60}")
+
+    # Show new products
+    if comparison['new_products']:
+        print(f"\nNEW PRODUCTS (in Run #{run_id_2}):")
+        for p in comparison['new_products'][:10]:
+            print(f"  + {p['name'][:50]} (Score: {p['score']:.1f})")
+
+    # Show dropped products
+    if comparison['dropped_products']:
+        print(f"\nDROPPED PRODUCTS (not in Run #{run_id_2}):")
+        for p in comparison['dropped_products'][:10]:
+            print(f"  - {p['name'][:50]} (Was: {p['score']:.1f})")
+
+    # Show recurring products with score changes
+    if comparison['recurring_products']:
+        print(f"\nRECURRING PRODUCTS (score changes):")
+        for p in comparison['recurring_products'][:10]:
+            change = p['score_change']
+            arrow = "↑" if change > 0 else "↓" if change < 0 else "→"
+            print(f"  {arrow} {p['name'][:45]} ({p['score_old']:.1f} → {p['score_new']:.1f}, {change:+.1f})")
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -477,7 +628,39 @@ def main():
         help="Include Amazon review sentiment analysis (slower but more accurate)"
     )
 
+    # History commands
+    parser.add_argument(
+        "--list-runs", action="store_true",
+        help="List recent discovery runs from history"
+    )
+    parser.add_argument(
+        "--history", type=str,
+        help="Show history for a product (e.g., --history 'air fryer')"
+    )
+    parser.add_argument(
+        "--compare", nargs=2, type=int, metavar=("RUN1", "RUN2"),
+        help="Compare two discovery runs (e.g., --compare 1 2)"
+    )
+    parser.add_argument(
+        "--run-details", type=int, metavar="RUN_ID",
+        help="Show details of a specific discovery run"
+    )
+
     args = parser.parse_args()
+
+    # Handle history commands first
+    if args.list_runs:
+        show_recent_runs()
+        return
+    elif args.history:
+        show_product_history(args.history)
+        return
+    elif args.compare:
+        compare_discovery_runs(args.compare[0], args.compare[1])
+        return
+    elif args.run_details:
+        show_run_details(args.run_details)
+        return
 
     if args.discover or args.keywords:
         finder = TrendsToProductsFinder()

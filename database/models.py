@@ -16,6 +16,7 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False, index=True)
+    normalized_name = Column(String(255), index=True, unique=True)  # For matching across runs
     category = Column(String(100), index=True)
     first_seen = Column(DateTime, default=datetime.utcnow)
     last_seen = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -23,7 +24,13 @@ class Product(Base):
     avg_sentiment = Column(Float, default=0.0)
     opportunity_score = Column(Float, default=0.0)
 
+    # Tracking fields for historical analysis
+    times_seen = Column(Integer, default=1)  # How many discovery runs it appeared in
+    highest_score = Column(Float, default=0.0)
+    lowest_score = Column(Float, default=100.0)
+
     mentions = relationship("Mention", back_populates="product")
+    snapshots = relationship("ProductSnapshot", back_populates="product")
 
     def __repr__(self):
         return f"<Product(name='{self.name}', score={self.opportunity_score:.2f})>"
@@ -87,3 +94,50 @@ class TrendSnapshot(Base):
 
     def __repr__(self):
         return f"<TrendSnapshot(date='{self.date}', mentions={self.daily_mentions})>"
+
+
+class DiscoveryRun(Base):
+    """Track each discovery session for historical comparison."""
+    __tablename__ = "discovery_runs"
+
+    id = Column(Integer, primary_key=True)
+    run_timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    mode = Column(String(50))  # "discover", "custom_keywords", "manual", "amazon_trending"
+    categories = Column(Text)  # JSON list of categories used
+    settings = Column(Text)  # JSON of settings (max_products, niche_types, etc.)
+    products_found = Column(Integer, default=0)
+    avg_score = Column(Float, default=0.0)
+    duration_seconds = Column(Integer)  # How long the run took
+
+    # Relationship to products found in this run
+    snapshots = relationship("ProductSnapshot", back_populates="discovery_run")
+
+    def __repr__(self):
+        return f"<DiscoveryRun(id={self.id}, timestamp='{self.run_timestamp}', products={self.products_found})>"
+
+
+class ProductSnapshot(Base):
+    """Snapshot of product state at each discovery run."""
+    __tablename__ = "product_snapshots"
+
+    id = Column(Integer, primary_key=True)
+    discovery_run_id = Column(Integer, ForeignKey("discovery_runs.id"), index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), index=True)
+
+    # Snapshot data (captured at this point in time)
+    opportunity_score = Column(Float)
+    reddit_sentiment = Column(Float)
+    sentiment_ratio = Column(Float)
+    reddit_posts = Column(Integer)
+    amazon_review_count = Column(Integer)
+    price = Column(String(50))
+    niche_type = Column(String(50))
+    trend_direction = Column(String(20))
+    combined_sentiment = Column(Float)
+
+    # Relationships
+    discovery_run = relationship("DiscoveryRun", back_populates="snapshots")
+    product = relationship("Product", back_populates="snapshots")
+
+    def __repr__(self):
+        return f"<ProductSnapshot(product_id={self.product_id}, score={self.opportunity_score})>"

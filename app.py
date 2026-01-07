@@ -9,6 +9,8 @@ from datetime import datetime
 import os
 import asyncio
 import sys
+import json
+from database import Database
 
 # Fix for Windows Playwright asyncio issue
 if sys.platform == 'win32':
@@ -371,7 +373,7 @@ with st.sidebar:
 
     research_mode = st.radio(
         "Research Mode",
-        ["Discover Trends", "Manual Products", "Amazon Trending"],
+        ["Discover Trends", "Manual Products", "Amazon Trending", "History"],
         help="Choose how to find products to research"
     )
 
@@ -379,7 +381,8 @@ with st.sidebar:
     mode_map = {
         "Discover Trends": "Discover Hidden Niches",
         "Manual Products": "Manual Products",
-        "Amazon Trending": "Amazon Trending"
+        "Amazon Trending": "Amazon Trending",
+        "History": "History"
     }
     internal_mode = mode_map[research_mode]
 
@@ -539,7 +542,7 @@ elif internal_mode == "Manual Products":
             status_text.empty()
             st.success(f"Researched {len(st.session_state.results)} products!")
 
-else:  # Amazon Trending
+elif internal_mode == "Amazon Trending":
     st.markdown("### Amazon Trending Products")
     st.markdown("Automatically fetch products from Amazon Movers & Shakers")
 
@@ -607,6 +610,198 @@ else:  # Amazon Trending
                 progress_bar.empty()
                 status_text.empty()
                 st.success(f"Analyzed {len(results)} products!")
+
+elif internal_mode == "History":
+    st.markdown("### Discovery History")
+    st.markdown("View past discovery runs and track product trends over time")
+
+    # Initialize database
+    @st.cache_resource
+    def get_db():
+        return Database()
+
+    db = get_db()
+
+    # Create tabs for different history views
+    tab1, tab2, tab3 = st.tabs(["Recent Runs", "Product Tracker", "Compare Runs"])
+
+    with tab1:
+        st.markdown("#### Recent Discovery Runs")
+
+        runs = db.get_recent_runs(limit=20)
+
+        if not runs:
+            st.info("No discovery runs yet. Run a discovery to start tracking history!")
+        else:
+            # Show runs in a table
+            run_data = []
+            for run in runs:
+                run_data.append({
+                    "ID": run.id,
+                    "Date": run.run_timestamp.strftime("%Y-%m-%d %H:%M") if run.run_timestamp else "N/A",
+                    "Mode": run.mode,
+                    "Products": run.products_found,
+                    "Avg Score": f"{run.avg_score:.1f}",
+                    "Duration": f"{run.duration_seconds}s" if run.duration_seconds else "N/A"
+                })
+
+            st.dataframe(pd.DataFrame(run_data), use_container_width=True, hide_index=True)
+
+            # Run details expander
+            st.markdown("#### View Run Details")
+            selected_run_id = st.selectbox(
+                "Select a run to view:",
+                options=[r.id for r in runs],
+                format_func=lambda x: f"Run #{x} - {next((r.run_timestamp.strftime('%Y-%m-%d %H:%M') for r in runs if r.id == x), 'N/A')}"
+            )
+
+            if selected_run_id:
+                run = db.get_run_by_id(selected_run_id)
+                snapshots = db.get_run_products(selected_run_id)
+
+                if run:
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Products Found", run.products_found)
+                    with col2:
+                        st.metric("Average Score", f"{run.avg_score:.1f}")
+                    with col3:
+                        st.metric("Duration", f"{run.duration_seconds}s" if run.duration_seconds else "N/A")
+
+                    if run.categories:
+                        try:
+                            categories = json.loads(run.categories)
+                            st.write(f"**Categories:** {', '.join(categories)}")
+                        except:
+                            pass
+
+                if snapshots:
+                    st.markdown("**Products in this run:**")
+                    product_data = []
+                    for snap in snapshots[:30]:
+                        product_data.append({
+                            "Product": snap.product.name[:50] if snap.product else "Unknown",
+                            "Score": snap.opportunity_score,
+                            "Sentiment": f"{snap.reddit_sentiment:.2f}" if snap.reddit_sentiment else "N/A",
+                            "Reddit Posts": snap.reddit_posts or 0,
+                            "Type": snap.niche_type or ""
+                        })
+                    st.dataframe(pd.DataFrame(product_data), use_container_width=True, hide_index=True)
+
+    with tab2:
+        st.markdown("#### Product Tracker")
+        st.markdown("Search for products to see their score trends over time")
+
+        product_search = st.text_input("Search product by name:", placeholder="e.g., air fryer")
+
+        if product_search:
+            products = db.search_products(product_search, limit=10)
+
+            if not products:
+                st.warning(f"No products found matching '{product_search}'")
+            else:
+                for product in products:
+                    with st.expander(f"{product.name[:60]} (seen {product.times_seen}x)"):
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Times Seen", product.times_seen)
+                        with col2:
+                            st.metric("Current Score", f"{product.opportunity_score:.1f}")
+                        with col3:
+                            st.metric("Highest", f"{product.highest_score:.1f}")
+                        with col4:
+                            st.metric("Lowest", f"{product.lowest_score:.1f}")
+
+                        # Get history and show chart
+                        history = db.get_product_history(product.id, limit=20)
+                        if history and len(history) > 1:
+                            chart_data = []
+                            for snap in reversed(history):
+                                if snap.discovery_run and snap.discovery_run.run_timestamp:
+                                    chart_data.append({
+                                        "Date": snap.discovery_run.run_timestamp,
+                                        "Score": snap.opportunity_score
+                                    })
+
+                            if chart_data:
+                                df = pd.DataFrame(chart_data)
+                                st.line_chart(df.set_index("Date")["Score"])
+                        elif history:
+                            st.info("Only one data point - run more discoveries to see trends!")
+
+    with tab3:
+        st.markdown("#### Compare Discovery Runs")
+        st.markdown("Select two runs to compare and see what changed")
+
+        runs = db.get_recent_runs(limit=15)
+
+        if len(runs) < 2:
+            st.info("Need at least 2 discovery runs to compare. Run more discoveries!")
+        else:
+            col1, col2 = st.columns(2)
+            with col1:
+                run1_id = st.selectbox(
+                    "Older Run:",
+                    options=[r.id for r in runs],
+                    format_func=lambda x: f"#{x} - {next((r.run_timestamp.strftime('%m/%d %H:%M') for r in runs if r.id == x), 'N/A')}",
+                    key="run1"
+                )
+            with col2:
+                run2_id = st.selectbox(
+                    "Newer Run:",
+                    options=[r.id for r in runs],
+                    format_func=lambda x: f"#{x} - {next((r.run_timestamp.strftime('%m/%d %H:%M') for r in runs if r.id == x), 'N/A')}",
+                    index=min(1, len(runs)-1),
+                    key="run2"
+                )
+
+            if st.button("Compare Runs", type="primary"):
+                if run1_id == run2_id:
+                    st.warning("Please select two different runs to compare")
+                else:
+                    comparison = db.compare_runs(run1_id, run2_id)
+                    summary = comparison['summary']
+
+                    # Summary metrics
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("New Products", summary['new_count'], delta=f"+{summary['new_count']}")
+                    with col2:
+                        st.metric("Recurring", summary['recurring_count'])
+                    with col3:
+                        st.metric("Dropped", summary['dropped_count'], delta=f"-{summary['dropped_count']}", delta_color="inverse")
+
+                    # New products
+                    if comparison['new_products']:
+                        st.markdown("**New Products (in newer run):**")
+                        new_df = pd.DataFrame([
+                            {"Product": p['name'][:45], "Score": p['score']}
+                            for p in comparison['new_products'][:10]
+                        ])
+                        st.dataframe(new_df, use_container_width=True, hide_index=True)
+
+                    # Recurring with changes
+                    if comparison['recurring_products']:
+                        st.markdown("**Recurring Products (score changes):**")
+                        recurring_df = pd.DataFrame([
+                            {
+                                "Product": p['name'][:40],
+                                "Old Score": p['score_old'],
+                                "New Score": p['score_new'],
+                                "Change": f"{p['score_change']:+.1f}"
+                            }
+                            for p in comparison['recurring_products'][:10]
+                        ])
+                        st.dataframe(recurring_df, use_container_width=True, hide_index=True)
+
+                    # Dropped products
+                    if comparison['dropped_products']:
+                        st.markdown("**Dropped Products (not in newer run):**")
+                        dropped_df = pd.DataFrame([
+                            {"Product": p['name'][:45], "Last Score": p['score']}
+                            for p in comparison['dropped_products'][:10]
+                        ])
+                        st.dataframe(dropped_df, use_container_width=True, hide_index=True)
 
 # Display results
 if st.session_state.results:

@@ -13,11 +13,13 @@ ASYNC VERSION: Parallel Reddit sentiment for 3-4x speedup.
 import re
 import asyncio
 import sys
+from datetime import datetime
 from typing import List, Dict, Any, Callable, Optional
 from scrapers.trends_rising_simple import TrendsRisingSimple
 from scrapers.browser_scraper import BrowserScraper
 from scrapers import RedditScraper
 from analysis import SentimentAnalyzer
+from database import Database
 
 # Async components for parallel processing
 from scrapers.async_worker_pool import AsyncWorkerPool
@@ -104,6 +106,57 @@ class TrendsToProductsFinder:
         self.reddit = RedditScraper(delay=2.0)
 
         self.sentiment = SentimentAnalyzer()
+        self.db = Database()
+
+    def _save_to_history(
+        self,
+        results: List[Dict[str, Any]],
+        mode: str,
+        categories: List[str],
+        settings: dict,
+        start_time: datetime
+    ) -> int:
+        """
+        Save discovery results to database for historical tracking.
+
+        Args:
+            results: List of product opportunities
+            mode: Discovery mode (discover, custom_keywords, etc.)
+            categories: Categories used for discovery
+            settings: Settings dict (max_products, niche_types, etc.)
+            start_time: When the discovery started
+
+        Returns:
+            Run ID of the saved discovery run
+        """
+        try:
+            duration = int((datetime.utcnow() - start_time).total_seconds())
+            avg_score = sum(r.get('opportunity_score', 0) for r in results) / len(results) if results else 0
+
+            # Create discovery run
+            run = self.db.create_discovery_run(
+                mode=mode,
+                categories=categories,
+                settings=settings
+            )
+
+            # Save all product snapshots
+            saved_count = self.db.bulk_save_snapshots(run.id, results)
+
+            # Complete the run with stats
+            self.db.complete_discovery_run(
+                run.id,
+                products_found=saved_count,
+                avg_score=avg_score,
+                duration_seconds=duration
+            )
+
+            print(f"\n[HISTORY] Saved run #{run.id} with {saved_count} products to database")
+            return run.id
+
+        except Exception as e:
+            print(f"\n[HISTORY] Warning: Could not save to history: {e}")
+            return -1
 
     def discover_opportunities(
         self,
@@ -132,6 +185,9 @@ class TrendsToProductsFinder:
         """
         if niche_types is None:
             niche_types = ["accessories", "alternatives", "complementary"]
+
+        # Track start time for history
+        start_time = datetime.utcnow()
 
         def update_progress(step: int, total: int, item: str = "", message: str = ""):
             if progress_callback:
@@ -281,6 +337,20 @@ class TrendsToProductsFinder:
         print("\n" + "=" * 70)
         print(f"Discovery complete! Found {len(results)} opportunities")
         print("=" * 70)
+
+        # Save to history database
+        self._save_to_history(
+            results=results,
+            mode="discover",
+            categories=categories or [],
+            settings={
+                "max_products": max_products,
+                "niche_types": niche_types,
+                "include_amazon_sentiment": include_amazon_sentiment,
+                "min_price": min_price
+            },
+            start_time=start_time
+        )
 
         return results
 
@@ -967,6 +1037,9 @@ class TrendsToProductsFinder:
         if niche_types is None:
             niche_types = ["accessories", "alternatives", "complementary"]
 
+        # Track start time for history
+        start_time = datetime.utcnow()
+
         def update_progress(step: int, total: int, item: str = "", message: str = ""):
             if progress_callback:
                 progress_callback(step, total, item, message)
@@ -1065,14 +1138,28 @@ class TrendsToProductsFinder:
 
         # Sort by score and return top results
         results.sort(key=lambda x: x["opportunity_score"], reverse=True)
+        final_results = results[:max_products]
 
         print("\n" + "=" * 70)
-        print(f"Discovery complete! Top {min(len(results), max_products)} opportunities:")
-        for i, r in enumerate(results[:5]):
+        print(f"Discovery complete! Top {len(final_results)} opportunities:")
+        for i, r in enumerate(final_results[:5]):
             print(f"  {i+1}. {r['name'][:50]} | Score: {r['opportunity_score']:.0f}")
         print("=" * 70)
 
-        return results[:max_products]
+        # Save to history database
+        self._save_to_history(
+            results=final_results,
+            mode="discover_async",
+            categories=categories or [],
+            settings={
+                "max_products": max_products,
+                "niche_types": niche_types,
+                "min_price": min_price
+            },
+            start_time=start_time
+        )
+
+        return final_results
 
     async def _get_sentiment_parallel(
         self,
@@ -1179,6 +1266,9 @@ class TrendsToProductsFinder:
         Returns:
             List of products with sentiment data and scores
         """
+        # Track start time for history
+        start_time = datetime.utcnow()
+
         print("\n" + "=" * 70)
         print("CUSTOM KEYWORD SEARCH")
         print(f"Keywords: {len(keywords)} | Min price: ${min_price:.0f}")
@@ -1313,5 +1403,19 @@ class TrendsToProductsFinder:
         print("\n" + "=" * 70)
         print(f"Found {len(results)} products")
         print("=" * 70)
+
+        # Save to history database
+        self._save_to_history(
+            results=results,
+            mode="custom_keywords",
+            categories=[],  # No categories for custom keywords
+            settings={
+                "keywords": keywords,
+                "max_products": max_products,
+                "min_price": min_price,
+                "include_amazon_reviews": include_amazon_reviews
+            },
+            start_time=start_time
+        )
 
         return results
